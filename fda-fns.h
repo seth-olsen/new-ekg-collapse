@@ -1,0 +1,244 @@
+#ifndef FDA_FNS_H_INCLUDED
+#define FDA_FNS_H_INCLUDED
+
+#ifndef INDRSQ
+#define INDRSQ 32500
+#define IN2DR 32501
+#define INDR 32502
+#define INDT 32503
+#define RMIN 0
+#define RMAX 32505
+#define DRVAL 32506
+#define DTVAL 32507
+#define LAMVAL 32508
+#define LAM2VAL 32509
+#define LAM6VAL 32510
+#define CSOMM 32511
+#define INRMAX 32512
+#define NEG2INDRSQ 32513
+#define WRITEDR 32514
+#define TWO_THIRDS 32515
+#define TWELFTH 32516
+#define FOUR_THIRDS 32517
+#define FIVE_TWELFTHS 32518
+#define EIGHT_PI 32519
+#define TWELVE_PI 32520
+#define JAC_RR 32521
+#define JAC_RRM1 32522
+#define JAC_RRM2 32523
+#define JAC_N00 32524
+#define JAC_N01 32525
+#define JAC_N02 32526
+#endif
+
+#include <vector> // for everything
+#include <cmath> // for ICs
+#include <map>
+
+using namespace std;
+
+typedef double dbl;
+
+typedef vector<dbl> VD;
+
+typedef map<int, double> MAPID;
+
+// x^n and 1/x^n
+inline dbl sq(dbl x) { return (x*x); }
+inline dbl pw3(dbl x) { return (x*x*x); }
+inline dbl pw4(dbl x) { return (x*x*x*x); }
+inline dbl pw5(dbl x) { return (x*x*x*x*x); }
+inline dbl pw6(dbl x) { return (x*x*x*x*x*x); }
+
+inline dbl norm_inf(const VD& vec)
+{
+  return max( *max_element(vec.begin(), vec.end()),
+	     -(*min_element(vec.begin(), vec.end())) );
+}
+
+// ******** DIFFERENCES ********
+
+inline dbl d_c(const VD& u, int ind)
+{ return u[ind+1] - u[ind-1]; }
+
+inline dbl d_f(const VD& u, int ind)
+{ return -3*u[ind] + 4*u[ind+1] - u[ind+2]; }
+
+inline dbl d_b(const VD& u, int ind)
+{ return 3*u[ind] - 4*u[ind-1] + u[ind-2]; }
+
+inline dbl d2_c(const VD& u, int ind)
+{ return u[ind-1] - 2*u[ind] + u[ind+1]; }
+
+inline dbl d2_f(const VD& u, int ind)
+{ return 2*u[ind] - 5*u[ind+1] + 4*u[ind+2] - u[ind+3]; }
+
+inline dbl d2_b(const VD& u, int ind)
+{ return 2*u[ind] - 5*u[ind-1] + 4*u[ind-2] - u[ind-3]; }
+
+// DERIVATIVES
+
+inline dbl ddr_c(const VD& u, MAPID& r, int ind)
+{ return r[IN2DR]*(u[ind+1] - u[ind-1]); }
+
+inline dbl ddr_f(const VD& u, MAPID& r, int ind)
+{ return r[IN2DR]*(-3*u[ind] + 4*u[ind+1] - u[ind+2]); }
+
+inline dbl ddr_b(const VD& u, MAPID& r, int ind)
+{ return r[IN2DR]*(3*u[ind] - 4*u[ind-1] + u[ind-2]); }
+
+inline dbl ddr2_c(const VD& u, MAPID& r, int ind)
+{ return r[INDRSQ]*(u[ind-1] - 2*u[ind] + u[ind+1]); }
+
+inline dbl ddr2_f(const VD& u, MAPID& r, int ind)
+{ return r[INDRSQ]*(2*u[ind] - 5*u[ind+1] + 4*u[ind+2] - u[ind+3]); }
+
+inline dbl ddr2_b(const VD& u, MAPID& r, int ind)
+{ return r[INDRSQ]*(2*u[ind] - 5*u[ind-1] + 4*u[ind-2] - u[ind-3]); }
+
+// d(r*u)/dr * 2*dr
+inline dbl d_ru_c(const VD& u, int ind, dbl dr, dbl r)
+{ return u[ind+1]*(r+dr) - u[ind-1]*(r-dr); }
+
+inline dbl d_ru_f(const VD& u, int ind, dbl dr, dbl r)
+{ return -3*u[ind]*r + 4*u[ind+1]*(r+dr) - u[ind+2]*(r+2*dr); }
+
+inline dbl d_ru_b(const VD& u, int ind, dbl dr, dbl r)
+{ return 3*u[ind]*r - 4*u[ind-1]*(r-dr) + u[ind-2]*(r-2*dr); }
+
+// d(u/r)/dr * 2*dr
+inline dbl d_urinv_c(const VD& u, int ind, dbl dr, dbl r)
+{ return u[ind+1]/(r+dr) - u[ind-1]/(r-dr); }
+
+inline dbl d_urinv_f(const VD& u, int ind, dbl dr, dbl r)
+{ return -3*u[ind]/r + 4*u[ind+1]/(r+dr) - u[ind+2]/(r+2*dr); }
+
+inline dbl d_urinv_b(const VD& u, int ind, dbl dr, dbl r)
+{ return 3*u[ind]/r - 4*u[ind-1]/(r-dr) + u[ind-2]/(r-2*dr); }
+
+// d(r^2*u)/dr * 2*dr
+inline dbl d_r2u_c(const VD& u, int ind, dbl dr, dbl r)
+{ return u[ind+1]*sq(r+dr) - u[ind-1]*sq(r-dr); }
+
+inline dbl d_r2u_f(const VD& u, int ind, dbl dr, dbl r)
+{ return -3*u[ind]*sq(r) + 4*u[ind+1]*sq(r+dr) - u[ind+2]*sq(r+2*dr); }
+
+inline dbl d_r2u_b(const VD& u, int ind, dbl dr, dbl r)
+{ return 3*u[ind]*sq(r) - 4*u[ind-1]*sq(r-dr) + u[ind-2]*sq(r-2*dr); }
+
+// d(u/r^2)/dr * 2*dr
+inline dbl d_ur2inv_c(const VD& u, int ind, dbl dr, dbl r)
+{ return u[ind+1]/sq(r+dr) - u[ind-1]/sq(r-dr); }
+
+inline dbl d_ur2inv_f(const VD& u, int ind, dbl dr, dbl r)
+{ return -3*u[ind]/sq(r) + 4*u[ind+1]/sq(r+dr) - u[ind+2]/sq(r+2*dr); }
+
+inline dbl d_ur2inv_b(const VD& u, int ind, dbl dr, dbl r)
+{ return 3*u[ind]/sq(r) - 4*u[ind-1]/sq(r-dr) + u[ind-2]/sq(r-2*dr); }
+
+// d(r^2*u^4)/dr * 2*dr
+inline dbl d_r2u4_c(const VD& u, int ind, dbl dr, dbl r)
+{ return ( sq(r+dr)*pw4(u[ind+1]) - sq(r-dr)*pw4(u[ind-1]) ); }
+
+inline dbl d_r2u4_f(const VD& u, int ind, dbl dr, dbl r)
+{ return ( -3*sq(r)*pw4(u[ind]) + 4*sq(r+dr)*pw4(u[ind+1]) - sq(r+2*dr)*pw4(u[ind+2]) ); }
+
+inline dbl d_r2u4_b(const VD& u, int ind, dbl dr, dbl r)
+{ return ( 3*sq(r)*pw4(u[ind]) - 4*sq(r-dr)*pw4(u[ind-1]) + sq(r-2*dr)*pw4(u[ind-2]) ); }
+
+// d(u/v^2)/dr * 2*dr
+inline dbl d_uv2inv_c(const VD& u, const VD& v, int ind)
+{ return ( u[ind+1]/sq(v[ind+1]) - u[ind-1]/sq(v[ind-1]) ); }
+
+inline dbl d_uv2inv_f(const VD& u, const VD& v, int ind)
+{ return ( -3*u[ind]/sq(v[ind]) + 4*u[ind+1]/sq(v[ind+1]) - u[ind+2]/sq(v[ind+2]) ); }
+
+inline dbl d_uv2inv_b(const VD& u, const VD& v, int ind)
+{ return ( 3*u[ind]/sq(v[ind]) - 4*u[ind-1]/sq(v[ind-1]) + u[ind-2]/sq(v[ind-2]) ); }
+
+
+// CRANK-NICHOLSON
+inline dbl cn(const VD& old_f, const VD& f, int ind)
+{
+  return 0.5*(old_f[ind] + f[ind]);
+}
+
+inline void set2_cn(const VD& old_f1, const VD& old_f2,
+		    const VD& f1, const VD& f2,
+		    VD& cn_f1, VD& cn_f2, int npts)
+{
+  for (int k = 0; k < npts; ++k) {
+      cn_f1[k] = 0.5*(old_f1[k] + f1[k]);
+      cn_f2[k] = 0.5*(old_f2[k] + f2[k]);
+  }
+  return;
+}
+inline void set3_cn(const VD& old_f1, const VD& old_f2, const VD& old_f3,
+		    const VD& f1, const VD& f2, const VD& f3,
+		    VD& cn_f1, VD& cn_f2, VD& cn_f3, int npts)
+{
+  for (int k = 0; k < npts; ++k) {
+      cn_f1[k] = 0.5*(old_f1[k] + f1[k]);
+      cn_f2[k] = 0.5*(old_f2[k] + f2[k]);
+      cn_f3[k] = 0.5*(old_f3[k] + f3[k]);
+  }
+  return;
+}
+
+// *********** BOUNDARY CONDITIONS ****************
+
+
+inline void dirichlet0(VD& field)
+{ field[0] = 0; }
+
+inline void neumann0(VD& field)
+{ field[0] = (4*field[1] - field[2]) / 3.0; }
+
+inline void sommerfeld(const VD& oldfield, VD& field, MAPID& r,
+		       int ind)
+{
+  field[ind] = (r[LAMVAL]*(field[ind-1] + oldfield[ind-1])
+		- 0.25*r[LAMVAL]*(field[ind-2] + oldfield[ind-2])
+		+ (1 - r[CSOMM])*oldfield[ind]) / (1 + r[CSOMM]);
+  return;
+}
+
+inline dbl dirichlet0res(const VD& field)
+{ return field[0]; }
+
+inline dbl neumann0res(const VD& field, MAPID& r)
+{ return ddr_f(field, r, 0); }
+
+inline dbl sommerfeldres(const VD& oldfield, const VD& field,
+			 MAPID& r, int ind)
+{
+  return 0.5*(field[ind] + oldfield[ind]) +
+    r[ind]*( r[INDT]*(field[ind] - oldfield[ind])
+	    + 0.5*(ddr_b(field,r,ind) + ddr_b(oldfield,r,ind)) );
+}
+
+
+// ********** DISSIPATION FUNCTIONS **************
+
+
+// kreiss-oliger dissipation (p.23 choptuik notes)
+inline dbl dissipate(dbl eps, const VD& u, int ind)
+{ return -0.0625 * eps * ( u[ind-2] - 4*u[ind-1] + 6*u[ind]
+			       - 4*u[ind+1] + u[ind+2] ); }
+
+inline dbl symdiss1(dbl eps, const VD& u)
+{ return -0.0625 * eps * ( u[3] - 4*u[2] + 7*u[1] - 4*u[0] ); }
+
+inline dbl antidiss1(dbl eps, const VD& u)
+{ return -0.0625 * eps * ( u[3] - 4*u[2] + 5*u[1] - 4*u[0] ); }
+
+inline dbl symdiss0(dbl eps, const VD& u)
+{ return -0.0625 * eps * ( 2*u[2] - 8*u[1] + 6*u[0] ); }
+
+inline dbl antidiss0(dbl eps, const VD& u)
+{ return -0.0625 * eps * ( 6*u[0] ); }
+
+
+
+#endif
+
