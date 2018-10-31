@@ -28,6 +28,20 @@ inline dbl fda_pi(const VD& old_pi, const VD& cn_xi, const VD& cn_pi, const VD& 
     / (1 + lam6_part);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
+inline dbl fda_hyp_ps(const VD& old_ps, const VD& cn_xi, const VD& cn_pi, const VD& cn_al,
+		   const VD& cn_be, const VD& cn_ps, MAPID& r, int k)
+{
+  double dt12_part = r[DT_TWELVE] * (ddr_c(cn_be,r,k) + 2*cn_be[k]*r[-k]);
+  return ( old_ps[k]*(1 + lam6_part) + r[DTVAL]*cn_be[k]*ddr_c(cn_ps,r,k) ) / (1 - lam6_part);
+}
+////////////////////////////////////////////////////////////////////////////////////////////////
+inline dbl fda_hyp_resPs(const VD& old_ps, const VD& f_ps, const VD& cn_xi, const VD& cn_pi, const VD& cn_al,
+			 const VD& cn_be, const VD& cn_ps, MAPID& r, int k)
+{
+  return r[INDT]*(f_ps[k] - old_ps[k]) - cn_be[k]*ddr_c(cn_ps,r,k)
+    - r[DT_TWELVE]*(ddr_c(cn_be,r,k) + 2*cn_be[k]*r[-k])*(f_ps[k] + old_ps[k]);
+}
+////////////////////////////////////////////////////////////////////////////////////////////////
 inline dbl fda_resXi(const VD& old_xi, const VD& f_xi, const VD& cn_xi, const VD& cn_pi,
 		     const VD& cn_al, const VD& cn_be, const VD& cn_ps, MAPID& r, int k)
 {
