@@ -29,6 +29,7 @@
 #define JAC_N00 32524
 #define JAC_N01 32525
 #define JAC_N02 32526
+#define DT_TWELVE 32527
 #endif
 
 #include <vector> // for everything

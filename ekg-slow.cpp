@@ -26,6 +26,7 @@
 #define JAC_N00 32524
 #define JAC_N01 32525
 #define JAC_N02 32526
+#define DT_TWELVE 32527
 #endif
 
 #include <iostream>
@@ -261,6 +262,7 @@ int main(int argc, char **argv)
     r[JAC_N00] = -3 * r[IN2DR];
     r[JAC_N01] = 4 * r[IN2DR];
     r[JAC_N02] = -1 * r[IN2DR];
+    r[DT_TWELVE] = r[TWELFTH] * dt;
     
 // **********************************************************
 //                      WRITE START

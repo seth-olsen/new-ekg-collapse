@@ -11,69 +11,19 @@ LDFLAGS	 	 = -Wall ${DEBUG}
 LDLIBS		 = -lbbhutil -L$(LIBDIR_LAPACK) -llapacke -llapack -lblas -L$(LGFORTRAN_PATH) -lgfortran -lm
 LOCDIR		 = home/seth/research
 
+ekg-slow: ekg-slow.o
+	-${CXX} -o ekg-slow ekg-slow.o ${LDLIBS}
+	rm -f ekg-slow.o
 
-h1-etol-slow: h1-etol-slow.o
-	-${CXX} -o h1-etol-slow h1-etol-slow.o ${LDLIBS}
-	rm -f h1-etol-slow.o
+ekg-slow.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h ekg-slow.cpp
+	$(CXX) -c $(CXXFLAGS) ekg-slow.cpp
 
-h1-etol-slow.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h h1-etol-slow.cpp
-	$(CXX) -c $(CXXFLAGS) h1-etol-slow.cpp
+ekg-fast: ekg-fast.o
+	-${CXX} -o ekg-fast ekg-fast.o ${LDLIBS}
+	rm -f ekg-fast.o
 
-h1-etol-fast: h1-etol-fast.o
-	-${CXX} -o h1-etol-fast h1-etol-fast.o ${LDLIBS}
-	rm -f h1-etol-fast.o
-
-h1-etol-fast.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h h1-etol-fast.cpp
-	$(CXX) -c $(CXXFLAGS) h1-etol-fast.cpp
-
-htol-etol-slow: htol-etol-slow.o
-	-${CXX} -o htol-etol-slow htol-etol-slow.o ${LDLIBS}
-	rm -f htol-etol-slow.o
-
-htol-etol-slow.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h htol-etol-slow.cpp
-	$(CXX) -c $(CXXFLAGS) htol-etol-slow.cpp
-
-htol-etol-fast: htol-etol-fast.o
-	-${CXX} -o htol-etol-fast htol-etol-fast.o ${LDLIBS}
-	rm -f htol-etol-fast.o
-
-htol-etol-fast.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h htol-etol-fast.cpp
-	$(CXX) -c $(CXXFLAGS) htol-etol-fast.cpp
-
-h1-e1-slow: h1-e1-slow.o
-	-${CXX} -o h1-e1-slow h1-e1-slow.o ${LDLIBS}
-	rm -f h1-e1-slow.o
-
-h1-e1-slow.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h h1-e1-slow.cpp
-	$(CXX) -c $(CXXFLAGS) h1-e1-slow.cpp
-
-h1-e1-fast: h1-e1-fast.o
-	-${CXX} -o h1-e1-fast h1-e1-fast.o ${LDLIBS}
-	rm -f h1-e1-fast.o
-
-h1-e1-fast.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h h1-e1-fast.cpp
-	$(CXX) -c $(CXXFLAGS) h1-e1-fast.cpp
-
-htol-indetol-slow: htol-indetol-slow.o
-	-${CXX} -o htol-indetol-slow htol-indetol-slow.o ${LDLIBS}
-	rm -f htol-indetol-slow.o
-
-htol-indetol-slow.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h htol-indetol-slow.cpp
-	$(CXX) -c $(CXXFLAGS) htol-indetol-slow.cpp
-
-htol-indetol-fast: htol-indetol-fast.o
-	-${CXX} -o htol-indetol-fast htol-indetol-fast.o ${LDLIBS}
-	rm -f htol-indetol-fast.o
-
-htol-indetol-fast.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h htol-indetol-fast.cpp
-	$(CXX) -c $(CXXFLAGS) htol-indetol-fast.cpp
-
-ekg-diagind: ekg-diagind.o
-	-${CXX} -o ekg-diagind ekg-diagind.o ${LDLIBS}
-	rm -f ekg-diagind.o
-
-ekg-diagind.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h ekg-diagind.cpp
-	$(CXX) -c $(CXXFLAGS) ekg-diagind.cpp
+ekg-fast.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h ekg-fast.cpp
+	$(CXX) -c $(CXXFLAGS) ekg-fast.cpp
 
 ekg-conv: fda-io.h ekg-conv.cpp
 	$(CXX) -c $(CXXFLAGS) ekg-conv.cpp
