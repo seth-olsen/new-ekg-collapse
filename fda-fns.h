@@ -36,6 +36,7 @@
 #define CPSI_RRM2 32531
 #endif
 
+#include <iostream>
 #include <vector> // for everything
 #include <cmath> // for ICs
 #include <map>
@@ -61,6 +62,53 @@ inline dbl norm_inf(const VD& vec)
 	     -(*min_element(vec.begin(), vec.end())) );
 }
 
+// initialize r with r{ {WRITEDR, wr_dr} } then pass to set
+void set_rmap(MAPID& r, int lastpt,
+	      dbl dr, dbl dt, dbl lam, dbl rmin, dbl rmax)
+{
+  char *error_response;
+  if ((lastpt*dr) != (rmax - rmin)) {
+    cout << "\nERROR: dr != (rmax-rmin)/lastpt\n" << endl;
+    cout << endl << "continue? " << endl;
+    cin >> error_response;
+  }
+  if (dt != lam*dr) {
+    cout << "\nERROR: lam != dt/dr\n" << endl;
+    cout << endl << "continue? " << endl;
+    cin >> error_response;
+  }
+  dbl one_third = 1 / 3.0;
+  r[RMIN] = rmin; r[RMAX] = rmax;
+  r[DRVAL] = dr; r[DTVAL] = dt; r[LAMVAL] = lam;
+  r[LAM2VAL] = 0.5 * lam;
+  r[LAM6VAL] = one_third * r[LAM2VAL]
+  r[INDR] = 1 / dr;
+  r[IN2DR] = 0.5*r[INDR];
+  r[INDRSQ] = sq(r[INDR]);
+  r[INDT] = 1 / dt;
+  r[INRMAX] = 1 / rmax;
+  r[NEG2INDRSQ] = -2 * r[INDRSQ];
+  r[CSOMM] = 0.75*lam + 0.5*dt*r[INRMAX];
+  r[TWO_THIRDS] = 2 * one_third;
+  r[FOUR_THIRDS] = 2 * r[TWO_THIRDS];
+  r[TWELFTH] = 0.25 * one_third;
+  r[FIVE_TWELFTHS] = 5 * r[TWELFTH];
+  r[EIGHT_PI] = 8 * M_PI;
+  r[TWELVE_PI] = 1.5 * r[EIGHT_PI];
+  r[JAC_RR] = (3 * r[IN2DR]) + r[INRMAX];
+  r[JAC_RRM1] = -4 * r[IN2DR];
+  r[JAC_RRM2] = r[IN2DR];
+  r[JAC_N00] = -3 * r[IN2DR];
+  r[JAC_N01] = 4 * r[IN2DR];
+  r[JAC_N02] = -1 * r[IN2DR];
+  r[DT_TWELVE] = r[TWELFTH] * dt;
+  r[CPSI_RR] = 1 + 3*r[RMAX]*r[IN2DR];
+  r[CPSI_RHS] = 1 / r[CPSI_RR];
+  r[CPSI_RRM1] = -2*r[RMAX]*r[INDR];
+  r[CPSI_RRM2] = r[RMAX]*r[IN2DR];
+  return;
+}
+
 // ******** DIFFERENCES ********
 
 inline dbl d_c(const VD& u, int ind)
@@ -81,6 +129,13 @@ inline dbl d2_f(const VD& u, int ind)
 inline dbl d2_b(const VD& u, int ind)
 { return 2*u[ind] - 5*u[ind-1] + 4*u[ind-2] - u[ind-3]; }
 
+inline dbl dlog_c(const VD& u, int ind)
+{ return log(u[ind+1] / u[ind-1]); }
+inline dbl dlog_f(const VD& u, int ind)
+{ return -3*log(u[ind]) + 4*log(u[ind+1]) - log(u[ind+2]); }
+inline dbl dlog_b(const VD& u, int ind)
+{ return 3*log(u[ind]) - 4*log(u[ind+1]) + log(u[ind+2]); }
+
 // DERIVATIVES
 
 inline dbl ddr_c(const VD& u, MAPID& r, int ind)
@@ -100,6 +155,13 @@ inline dbl ddr2_f(const VD& u, MAPID& r, int ind)
 
 inline dbl ddr2_b(const VD& u, MAPID& r, int ind)
 { return r[INDRSQ]*(2*u[ind] - 5*u[ind-1] + 4*u[ind-2] - u[ind-3]); }
+
+inline dbl ddrlog_c(const VD& u, MAPID& r, int ind)
+{ return r[IN2DR]*log(u[ind+1] / u[ind-1]); }
+inline dbl ddrlog_f(const VD& u, MAPID& r, int ind)
+{ return r[IN2DR]*(-3*log(u[ind]) + 4*log(u[ind+1]) - log(u[ind+2])); }
+inline dbl ddrlog_b(const VD& u, MAPID& r, int ind)
+{ return r[IN2DR]*(3*log(u[ind]) - 4*log(u[ind+1]) + log(u[ind+2])); }
 
 // d(r*u)/dr * 2*dr
 inline dbl d_ru_c(const VD& u, int ind, dbl dr, dbl r)
