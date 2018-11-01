@@ -395,14 +395,20 @@ int main(int argc, char **argv)
 	      f_xi, f_pi, f_al, f_be, f_ps, maspect, ires_xi,
 	      ires_pi, ires_al, ires_be, ires_ps, wr_xi, wr_pi, wr_al, wr_be, wr_ps,
 	      r, save_pt, lastwr);
-	if (write_ricci) {
-	  ricci[0] = sRicci(f_xi, f_pi, f_ps, 0);//outgoing_null0(f_al, f_be, f_ps, inv2dr, r);
+        if (write_ricci) {
+	  if (psi_hyp) {
+	    get_resPs_ell(ricci, f_xi, f_pi, f_al, f_be, f_ps, r, lastwr, save_pt);
+	  }
+	  else {
+	    get_resPs_hyp(ricci, old_ps, f_ps, cn_xi, cn_pi, cn_al, cn_be, cn_ps, r, lastwr, save_pt);
+	  }
+	  /*ricci[0] = sRicci(f_xi, f_pi, f_ps, 0);
 	  int s = save_pt;
 	  for (int k = 1; k < lastwr; ++k) {
-	    ricci[k] = sRicci(f_xi, f_pi, f_ps, s); // outgoing_null(f_al, f_be, f_ps, s, inv2dr, r);
+	    ricci[k] = sRicci(f_xi, f_pi, f_ps, s);
 	    s += save_pt;
 	  }
-	  ricci[lastwr] = sRicci(f_xi, f_pi, f_ps, lastpt);//outgoing_nullR(f_al, f_be, f_ps, s, inv2dr, r);
+	  ricci[lastwr] = sRicci(f_xi, f_pi, f_ps, lastpt);*/
 	}
 	if (write_outnull) {
 	  outnull[0] = outgoing_null_f(f_al, f_be, f_ps, r, 0);
