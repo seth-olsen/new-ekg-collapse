@@ -28,9 +28,8 @@
 #define JAC_N02 32526
 #define DT_TWELVE 32527
 #define CPSI_RHS 32528
-#define CPSI_RR 32529
-#define CPSI_RRM1 32530
-#define CPSI_RRM2 32531
+#define CSOMM_RHS 32529
+#define CSOMM_OLD 32530
 #endif
 
 #include <iostream>
@@ -70,6 +69,7 @@ int main(int argc, char **argv)
   dbl rmax = 100.0;
   dbl dspn = 0.5; // dissipation coefficient
   dbl tol = 0.00000001; // iterative method tolerance
+  dbl ell_tol = 0.001*tol;
   // for computing residual: 0 = inf-norm, 1 = 1-norm, 2 = 2-norm
   int resnorm_type = 0;
   int maxit = 25; // max iterations for debugging
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
       {"-check_step",&check_step}, {"-nresn",&nresn},
       {"-resn0",&resn0}, {"-resn1",&resn1}, {"-resn2",&resn2}};
   map<str, dbl *> p_dbl {{"-lam",&lam}, {"-r2m",&r2m}, {"-rmin",&rmin},
-      {"-rmax",&rmax}, {"-dspn",&dspn}, {"-tol",&tol},
+      {"-rmax",&rmax}, {"-dspn",&dspn}, {"-tol",&tol}, {"-ell_tol",&ell_tol},
       {"-ic_Dsq",&ic_Dsq}, {"-ic_r0",&ic_r0}, {"-ic_Amp",&ic_Amp}};
   map<str, bool *> p_bool { {"-psi_hyp",&psi_hyp}, {"-zero_pi",&zero_pi},
       {"-somm_cond",&somm_cond}, {"-dspn_bound",&dspn_bound}, {"-dr3_up",&dr3_up}, {"-dspn_psi",&dspn_psi},
@@ -142,11 +142,19 @@ int main(int argc, char **argv)
     resnorm_type = 0;
   }
 
+  // SET SOLVER
+  SOLVER ekg_solver = solve_E_fast;
+  if (psi_hyp) { ekg_solver = solve_H_slow; }
+  else if (clean_hyp && clean_ell) { ekg_solver = solve_E_slow; }
+
   // HERE psi_hyp = True means do NOT dissipate the point next to r = 0
   void (*apply_dissipation)(const VD&, const VD&, VD&, VD&, int, dbl);
-  if (psi_hyp) { apply_dissipation = dissipationNB2_xp; }
-  else if (dspn_bound) { apply_dissipation = dissipationB_xp; }
+  if (dspn_bound) { apply_dissipation = dissipationB_xp; }
   else { apply_dissipation = dissipationNB_xp; }
+
+  int n_ell = 3;
+  if (psi_hyp) { n_ell = 2; }
+  int n_hyp = 5 - n_ell;
 
 // **********************************************************
 //                      WRITE START
@@ -268,10 +276,9 @@ int main(int argc, char **argv)
     r[JAC_N01] = 4 * r[IN2DR];
     r[JAC_N02] = -1 * r[IN2DR];
     r[DT_TWELVE] = r[TWELFTH] * dt;
-    r[CPSI_RR] = 1 + 3*r[RMAX]*r[IN2DR];
-    r[CPSI_RHS] = 1 / r[CPSI_RR];
-    r[CPSI_RRM1] = -2*r[RMAX]*r[INDR];
-    r[CPSI_RRM2] = r[RMAX]*r[IN2DR];
+    r[CPSI_RHS] = 1 / r[JAC_RR];
+    r[CSOMM_RHS] = 1 / (1 + r[CSOMM]);
+    r[CSOMM_OLD] = 1 - r[CSOMM];
     
 // **********************************************************
 //                      WRITE START
@@ -320,7 +327,7 @@ int main(int argc, char **argv)
     VD f_al(npts, 1), f_be(npts, 0), f_ps(npts, 1);
     VD cn_xi(npts, 0), cn_pi(npts, 0);
     VD cn_al(npts, 1), cn_be(npts, 0), cn_ps(npts, 1);
-    VD res_hyp(2*npts, 0);
+    VD res_hyp(n_hyp*npts, 0);
     vlen = ((write_ires_xp) ? npts : 1);
     VD older_xi(vlen, 0), older_pi(vlen, 0);
     vlen = ((write_ires_abp) ? npts : 1);
@@ -329,20 +336,15 @@ int main(int argc, char **argv)
     VD residuals(vlen, 0);
   
     // lapack object declaration
-    lapack_int N = 3*npts;
+    lapack_int N = n_ell*npts;
     lapack_int kl = 2;
     lapack_int ku = 2;
     lapack_int nrhs = 1;
     lapack_int ldab = 2*kl + ku + 1;
     lapack_int ldb = N;
     vector<lapack_int> ipiv(N);
-    lapack_int info = 0;
-    VD jac(ldab*N, 0), res_ell(ldb, 0);
-    VD jac_zero(ldab*N, 0); // res_zero(ldb, 0);
-    /*
-    VD jac_al(ldab*npts, 0), jac_be(ldab*npts, 0), jac_ps(ldab*npts, 0);
-    // for resetting jacobian and residuals
-    */
+    VD res_ell(ldb, 0);
+    VD jac_zero(ldab*N, 0);
 
     time_t start_time = time(NULL); // time for rough performance measure
     
@@ -351,7 +353,7 @@ int main(int argc, char **argv)
 // **********************************************************
 
     dbl t = 0; // declare position and time variables
-    int j;
+    int j, itn = 0;
     for (j = 1; j < npts; ++j) {
       r[j] = rmin + j*dr;
       r[-j] = 1 / r[j];
@@ -363,27 +365,9 @@ int main(int argc, char **argv)
     dirichlet0(f_xi);
     neumann0(f_pi);
 
-    int itn, hyp_itn = 0, ell_itn = 0;
-    // SOLVE ELLIPTIC EQUATIONS FOR t=0
-    get_ell_res_abp_fast(res_ell, f_xi, f_pi, f_al, f_be, f_ps, r, lastpt);
-    dbl res = norm_inf(res_ell);
-    if (static_metric) { res = 0; }
-    while (res > tol) {
-      jac = jac_zero;
-      set_jacCMabpfast(jac, f_xi, f_pi, f_al, f_be, f_ps, r, npts, kl, ku, ldab);
-      info = LAPACKE_dgbsv(LAPACK_COL_MAJOR, N, kl, ku, nrhs,
-			   &jac[0], ldab, &ipiv[0], &res_ell[0], ldb);
-      if (info != 0) { cout << ell_itn << "\nERROR: cannot solve initial elliptics\ninfo = " << info << endl; }
-
-      apply_up_abp_join(res_ell, f_al, f_be, f_ps, npts);
-      get_ell_res_abp_fast(res_ell, f_xi, f_pi, f_al, f_be, f_ps, r, lastpt);
-      res = norm_inf(res_ell);
-      // **************** REMOVE THIS ***
-      if (++ell_itn > maxit) {
-	cout << "\nSTUCK AT t=0 with res = " << res << endl;
-	cout << endl << "continue? " << endl;
-	cin >> outfile;
-      }
+    // SOLVE ELLIPTIC EQUATIONS FOR t=0  
+    if (!static_metric) {
+      itn = solve_t0_fast(f_xi, f_pi, f_al, f_be, f_ps, r, lastpt, maxit, 0.1*ell_tol);
     }
     
     // set old_f = f = cn_f for writing initial step
@@ -453,57 +437,13 @@ int main(int argc, char **argv)
 	older_pi = old_pi;
       }
       if (write_ires_abp) { older_ps = old_ps; }
-      // set old_f = f = cn_f
-      old_xi = f_xi; old_pi = f_pi; old_al = f_al; old_be = f_be; old_ps = f_ps;
-      cn_xi = f_xi; cn_pi = f_pi; cn_al = f_al; cn_be = f_be; cn_ps = f_ps;
 
-      // ITERATIVE UPDATE UNTIL RES < TOL
-      itn = 0;
-      res = tol + 1;
-      while (res > tol) {
-	hyp_itn = 0; ell_itn = 0;
-        while (res > tol) {
-	  hyp_solve_px_fast(old_xi, old_pi, f_xi, f_pi, cn_xi, cn_pi, cn_al, cn_be, cn_ps,
-			    r, lastpt);
-	  res = get_hyp_res_fast(res_hyp, old_xi, old_pi, f_xi, f_pi, cn_xi, cn_pi, cn_al, cn_be, cn_ps,
-				 r, lastpt);
-	  if (++hyp_itn > maxit) {
-	    cout << endl << i << " hyperbolic solver STUCK at t = " << t << endl;
-	    cout << endl << "continue? " << endl;
-	    cin >> outfile;
-	  }
-	}
-	
-        get_ell_res_abp_fast(res_ell, f_xi, f_pi, f_al, f_be, f_ps, r, lastpt);
-	res = norm_inf(res_ell);
-	while (res > tol) {
-	  jac = jac_zero;
-	  set_jacCMabpfast(jac, f_xi, f_pi, f_al, f_be, f_ps, r, npts, kl, ku, ldab);
-	  //set_jacCMabpclean(jac, f_xi, f_pi, f_al, f_be, f_ps, r, npts, kl, ku, ldab);
-	  info = LAPACKE_dgbsv(LAPACK_COL_MAJOR, N, kl, ku, nrhs,
-			       &jac[0], ldab, &ipiv[0], &res_ell[0], ldb);
-	  if (info != 0) { cout << t << "\nERROR: cannot solve elliptic equations\ninfo = " << info << endl; }
-	  apply_up_abp_join(res_ell, f_al, f_be, f_ps, npts);
-	  get_ell_res_abp_fast(res_ell, f_xi, f_pi, f_al, f_be, f_ps, r, lastpt);
-	  res = norm_inf(res_ell);
-	  if (++ell_itn > maxit) {
-	    cout << endl << i << " elliptic solver STUCK at t = " << t << endl;
-	    cout << endl << "continue? " << endl;
-	    cin >> outfile;
-	  }
-	}
-	set3_cn(old_ps, old_be, old_al, f_ps, f_be, f_al, cn_ps, cn_be, cn_al, npts);
-	res = get_hyp_res_fast(res_hyp, old_xi, old_pi, f_xi, f_pi, cn_xi, cn_pi, cn_al, cn_be, cn_ps,
-			       r, lastpt);
-	if (++itn > maxit) {
-	  cout << endl << i << " solver STUCK at t = " << t << "\nres = " << res << endl;
-	  cout << endl << "continue? " << endl;
-	  cin >> outfile;
-	}
-	
-      }
+      itn = (*ekg_solver)(old_xi, old_pi, old_al, old_be, old_ps, f_xi, f_pi, f_al, f_be, f_ps,
+			  cn_xi, cn_pi, cn_al, cn_be, cn_ps, res_hyp, res_ell, jac_zero,
+			  r, lastpt, maxit, i, t, tol, ell_tol, N, kl, ku, nrhs, ldab, ipiv, ldb);
+
       // record itn count of this sweep
-      if (write_itn) { ofs_itn << i <<","<< t <<","<< itn <<","<< hyp_itn <<","<< ell_itn << endl; }
+      if (write_itn) { ofs_itn << i <<","<< t <<","<< itn << endl; }
 // *****************************************************************
 // ****************** ITERATIVE SOLUTION COMPLETE ******************
 // *****************************************************************
@@ -513,6 +453,7 @@ int main(int argc, char **argv)
     // **************************************************************************
       (*apply_dissipation)(old_xi, old_pi, f_xi, f_pi, lastpt-1, dspn);
     }
+    
 // ***********************************************************************
 // ***********************************************************************
 // *********************** FULL SOLUTION COMPLETE ************************
@@ -555,7 +496,8 @@ int main(int argc, char **argv)
     if (write_itn) { ofs_itn.close(); }
     if (write_mtot) { ofs_mass.close(); }
     // PRINT resolution runtime and number of steps reaching maxit
-    cout << difftime(time(NULL), start_time) << " seconds elapsed" << endl;
+    cout << factor << "-"+outfile+" written in "
+	 << difftime(time(NULL),start_time) << " seconds" << endl;
   }
   // ******************** DONE LOOPING OVER RESOLUTIONS *********************
   return 0;

@@ -28,9 +28,8 @@
 #define JAC_N02 32526
 #define DT_TWELVE 32527
 #define CPSI_RHS 32528
-#define CPSI_RR 32529
-#define CPSI_RRM1 32530
-#define CPSI_RRM2 32531
+#define CSOMM_RHS 32529
+#define CSOMM_OLD 32530
 #endif
 
 #include <iostream>
@@ -70,6 +69,7 @@ int main(int argc, char **argv)
   dbl rmax = 100.0;
   dbl dspn = 0.5; // dissipation coefficient
   dbl tol = 0.00000001; // iterative method tolerance
+  dbl ell_tol = 0.001*tol;
   // for computing residual: 0 = inf-norm, 1 = 1-norm, 2 = 2-norm
   int resnorm_type = 0;
   int maxit = 25; // max iterations for debugging
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
       {"-check_step",&check_step}, {"-nresn",&nresn},
       {"-resn0",&resn0}, {"-resn1",&resn1}, {"-resn2",&resn2}};
   map<str, dbl *> p_dbl {{"-lam",&lam}, {"-r2m",&r2m}, {"-rmin",&rmin},
-      {"-rmax",&rmax}, {"-dspn",&dspn}, {"-tol",&tol},
+      {"-rmax",&rmax}, {"-dspn",&dspn}, {"-tol",&tol}, {"-ell_tol",&ell_tol},
       {"-ic_Dsq",&ic_Dsq}, {"-ic_r0",&ic_r0}, {"-ic_Amp",&ic_Amp}};
   map<str, bool *> p_bool { {"-psi_hyp",&psi_hyp}, {"-zero_pi",&zero_pi},
       {"-somm_cond",&somm_cond}, {"-dspn_bound",&dspn_bound}, {"-dr3_up",&dr3_up}, {"-dspn_psi",&dspn_psi},
@@ -254,7 +254,7 @@ int main(int argc, char **argv)
     r[INDT] = 1 / dt;
     r[INRMAX] = 1 / rmax;
     r[NEG2INDRSQ] = -2 * r[INDRSQ];
-    r[CSOMM] = 0.75*lam + 0.5*dt*r[INRMAX]; // for field's outer bc
+    r[CSOMM] = 0.75*lam + 0.5*dt*r[INRMAX];
     r[TWO_THIRDS] = 2 * one_third;
     r[FOUR_THIRDS] = 2 * r[TWO_THIRDS];
     r[TWELFTH] = 0.25 * one_third;
@@ -268,10 +268,9 @@ int main(int argc, char **argv)
     r[JAC_N01] = 4 * r[IN2DR];
     r[JAC_N02] = -1 * r[IN2DR];
     r[DT_TWELVE] = r[TWELFTH] * dt;
-    r[CPSI_RR] = 1 + 3*r[RMAX]*r[IN2DR];
-    r[CPSI_RHS] = 1 / r[CPSI_RR];
-    r[CPSI_RRM1] = -2*r[RMAX]*r[INDR];
-    r[CPSI_RRM2] = r[RMAX]*r[IN2DR];
+    r[CPSI_RHS] = 1 / r[JAC_RR];
+    r[CSOMM_RHS] = 1 / (1 + r[CSOMM]);
+    r[CSOMM_OLD] = 1 - r[CSOMM];
     
 // **********************************************************
 //                      WRITE START
@@ -320,7 +319,7 @@ int main(int argc, char **argv)
     VD f_al(npts, 1), f_be(npts, 0), f_ps(npts, 1);
     VD cn_xi(npts, 0), cn_pi(npts, 0);
     VD cn_al(npts, 1), cn_be(npts, 0), cn_ps(npts, 1);
-    VD res_hyp(3*npts, 0);
+    VD res_hyp(3*npts, 0); // **************BECAUSE PSI HYP
     vlen = ((write_ires_xp) ? npts : 1);
     VD older_xi(vlen, 0), older_pi(vlen, 0);
     vlen = ((write_ires_abp) ? npts : 1);
@@ -370,7 +369,7 @@ int main(int argc, char **argv)
     get_ell_res_abpclean_join(res_ell, f_xi, f_pi, f_al, f_be, f_ps, r, lastpt);
     dbl res = norm_inf(res_ell);
     if (static_metric) { res = 0; }
-    while (res > tol) {
+    while (res > ell_tol) {
       jac = jac_zero;
       set_jacCMabpslow(jac, f_xi, f_pi, f_al, f_be, f_ps, r, npts, kl, ku, ldab);
       info = LAPACKE_dgbsv(LAPACK_COL_MAJOR, N, kl, ku, nrhs,
@@ -414,13 +413,14 @@ int main(int argc, char **argv)
 	      ires_pi, ires_al, ires_be, ires_ps, wr_xi, wr_pi, wr_al, wr_be, wr_ps,
 	      r, save_pt, lastwr);
 	if (write_ricci) {
-	  ricci[0] = sRicci(f_xi, f_pi, f_ps, 0);//outgoing_null0(f_al, f_be, f_ps, inv2dr, r);
+	  get_resPs_ell(ricci, f_xi, f_pi, f_al, f_be, f_ps, r, lastwr, save_pt);
+	  /*ricci[0] = sRicci(f_xi, f_pi, f_ps, 0);
 	  int s = save_pt;
 	  for (int k = 1; k < lastwr; ++k) {
-	    ricci[k] = sRicci(f_xi, f_pi, f_ps, s); // outgoing_null(f_al, f_be, f_ps, s, inv2dr, r);
+	    ricci[k] = sRicci(f_xi, f_pi, f_ps, s);
 	    s += save_pt;
 	  }
-	  ricci[lastwr] = sRicci(f_xi, f_pi, f_ps, lastpt);//outgoing_nullR(f_al, f_be, f_ps, s, inv2dr, r);
+	  ricci[lastwr] = sRicci(f_xi, f_pi, f_ps, lastpt);*/
 	}
 	if (write_outnull) {
 	  outnull[0] = outgoing_null_f(f_al, f_be, f_ps, r, 0);
@@ -478,7 +478,7 @@ int main(int argc, char **argv)
 	
         get_ell_res_ab_slow(res_ab, f_xi, f_pi, f_al, f_be, f_ps, r, lastpt);
 	res = norm_inf(res_ab);
-	while (res > tol) {
+	while (res > ell_tol) {
 	  jac_ab = jac_ab_zero;
 	  set_jacCM_ab_slow(jac_ab, f_xi, f_pi, f_al, f_be, f_ps, r, npts, kl, ku, ldab);
 	  info = LAPACKE_dgbsv(LAPACK_COL_MAJOR, N_ab, kl, ku, nrhs,
@@ -528,13 +528,14 @@ int main(int argc, char **argv)
 	    ires_pi, ires_al, ires_be, ires_ps, wr_xi, wr_pi, wr_al, wr_be, wr_ps,
 	    r, save_pt, lastwr);
       if (write_ricci) {
-	ricci[0] = sRicci(f_xi, f_pi, f_ps, 0);
-	int s = save_pt;
-	for (int k = 1; k < lastwr; ++k) {
-	  ricci[k] = sRicci(f_xi, f_pi, f_ps, s);
-	  s += save_pt;
-	}
-	ricci[lastwr] = sRicci(f_xi, f_pi, f_ps, lastpt);
+        get_resPs_ell(ricci, f_xi, f_pi, f_al, f_be, f_ps, r, lastwr, save_pt);
+	/*ricci[0] = sRicci(f_xi, f_pi, f_ps, 0);
+	  int s = save_pt;
+	  for (int k = 1; k < lastwr; ++k) {
+	    ricci[k] = sRicci(f_xi, f_pi, f_ps, s);
+	    s += save_pt;
+	  }
+	  ricci[lastwr] = sRicci(f_xi, f_pi, f_ps, lastpt);*/
       }
       if (write_outnull) {
 	outnull[0] = outgoing_null_f(f_al, f_be, f_ps, r, 0);

@@ -494,8 +494,8 @@ void set_jacCMabpfast(VD& jac, const VD& f_xi, const VD& f_pi,
 }
 
 void set_jacCMabpslow(VD& jac, const VD& f_xi, const VD& f_pi,
-		       const VD& f_al, const VD& f_be, const VD& f_ps, MAPID& r,
-		       int npts, int kl, int ku, int ldab)
+		      const VD& f_al, const VD& f_be, const VD& f_ps, MAPID& r,
+		      int npts, int kl, int ku, int ldab)
 {
   int one_past_last = npts - 1;
   int k, kbe, kps, j = 0, jbe = npts, jps = 2*npts;

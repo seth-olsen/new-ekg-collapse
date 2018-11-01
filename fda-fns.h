@@ -31,15 +31,15 @@
 #define JAC_N02 32526
 #define DT_TWELVE 32527
 #define CPSI_RHS 32528
-#define CPSI_RR 32529
-#define CPSI_RRM1 32530
-#define CPSI_RRM2 32531
+#define CSOMM_RHS 32529
+#define CSOMM_OLD 32530
 #endif
 
 #include <iostream>
 #include <vector> // for everything
 #include <cmath> // for ICs
 #include <map>
+#include <string>
 
 using namespace std;
 
@@ -66,7 +66,7 @@ inline dbl norm_inf(const VD& vec)
 void set_rmap(MAPID& r, int lastpt,
 	      dbl dr, dbl dt, dbl lam, dbl rmin, dbl rmax)
 {
-  char *error_response;
+  string error_response = "idc";
   if ((lastpt*dr) != (rmax - rmin)) {
     cout << "\nERROR: dr != (rmax-rmin)/lastpt\n" << endl;
     cout << endl << "continue? " << endl;
@@ -81,7 +81,7 @@ void set_rmap(MAPID& r, int lastpt,
   r[RMIN] = rmin; r[RMAX] = rmax;
   r[DRVAL] = dr; r[DTVAL] = dt; r[LAMVAL] = lam;
   r[LAM2VAL] = 0.5 * lam;
-  r[LAM6VAL] = one_third * r[LAM2VAL]
+  r[LAM6VAL] = one_third * r[LAM2VAL];
   r[INDR] = 1 / dr;
   r[IN2DR] = 0.5*r[INDR];
   r[INDRSQ] = sq(r[INDR]);
@@ -102,10 +102,9 @@ void set_rmap(MAPID& r, int lastpt,
   r[JAC_N01] = 4 * r[IN2DR];
   r[JAC_N02] = -1 * r[IN2DR];
   r[DT_TWELVE] = r[TWELFTH] * dt;
-  r[CPSI_RR] = 1 + 3*r[RMAX]*r[IN2DR];
-  r[CPSI_RHS] = 1 / r[CPSI_RR];
-  r[CPSI_RRM1] = -2*r[RMAX]*r[INDR];
-  r[CPSI_RRM2] = r[RMAX]*r[IN2DR];
+  r[CPSI_RHS] = 1 / r[JAC_RR];
+  r[CSOMM_RHS] = 1 / (1 + r[CSOMM]);
+  r[CSOMM_OLD] = 1 - r[CSOMM];
   return;
 }
 
@@ -264,9 +263,9 @@ inline void neumann0(VD& field)
 inline void sommerfeld(const VD& oldfield, VD& field, MAPID& r,
 		       int ind)
 {
-  field[ind] = (r[LAMVAL]*(field[ind-1] + oldfield[ind-1])
-		- 0.25*r[LAMVAL]*(field[ind-2] + oldfield[ind-2])
-		+ (1 - r[CSOMM])*oldfield[ind]) / (1 + r[CSOMM]);
+  field[ind] = r[CSOMM_RHS]*( r[LAMVAL]*(field[ind-1] + oldfield[ind-1])
+			      - 0.25*r[LAMVAL]*(field[ind-2] + oldfield[ind-2])
+			      + r[CSOMM_OLD]*oldfield[ind] );
   return;
 }
 
