@@ -496,8 +496,7 @@ int main(int argc, char **argv)
     if (write_itn) { ofs_itn.close(); }
     if (write_mtot) { ofs_mass.close(); }
     // PRINT resolution runtime and number of steps reaching maxit
-    cout << factor << "-"+outfile+" written in "
-	 << difftime(time(NULL),start_time) << " seconds" << endl;
+    cout << outfile+" written in " << difftime(time(NULL),start_time) << " seconds" << endl;
   }
   // ******************** DONE LOOPING OVER RESOLUTIONS *********************
   return 0;

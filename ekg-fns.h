@@ -21,7 +21,7 @@ inline dbl fda_xi(const VD& old_xi, const VD& cn_xi, const VD& cn_pi,
 inline dbl fda_pi(const VD& old_pi, const VD& cn_xi, const VD& cn_pi, const VD& cn_al,
 		  const VD& cn_be, const VD& cn_ps, MAPID& r, int k)
 {
-  double lam6_part = r[LAM6VAL] * (d_c(cn_be,k) + cn_be[k]*(4*r[DRVAL]*r[-k] + 6*d_c(cn_ps,k)/cn_ps[k]));
+  dbl lam6_part = r[LAM6VAL] * (d_c(cn_be,k) + cn_be[k]*(4*r[DRVAL]*r[-k] + 6*d_c(cn_ps,k)/cn_ps[k]));
   return ( old_pi[k]*(1 - lam6_part) + (r[LAM2VAL] / sq(r[k]*sq(cn_ps[k]))) *
     (sq(r[k+1]*sq(cn_ps[k+1]))*(cn_al[k+1]*cn_xi[k+1]/sq(cn_ps[k+1]) + cn_be[k+1]*cn_pi[k+1])
      - sq(r[k-1]*sq(cn_ps[k-1]))*(cn_al[k-1]*cn_xi[k-1]/sq(cn_ps[k-1]) + cn_be[k-1]*cn_pi[k-1])) )
@@ -35,25 +35,25 @@ inline dbl fda_pi(const VD& old_pi, const VD& cn_xi, const VD& cn_pi, const VD& 
 inline dbl fda_hyp_ps(const VD& old_ps, const VD& cn_xi, const VD& cn_pi, const VD& cn_al,
 		      const VD& cn_be, const VD& cn_ps, MAPID& r, int k)
 {
-  double dt12_part = r[LAM6VAL] * (0.25*d_c(cn_be,k) + cn_be[k]*r[DRVAL]*r[-k]);
+  dbl dt12_part = r[LAM6VAL] * (0.25*d_c(cn_be,k) + cn_be[k]*r[DRVAL]*r[-k]);
   return ( old_ps[k]*(1 + dt12_part) + r[LAM2VAL]*cn_be[k]*d_c(cn_ps,k) ) / (1 - dt12_part);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 inline dbl fdaR_hyp_ps(const VD& f_ps, MAPID& r, int k)
 {
-  return r[CPSI_RHS]*( r[INDR] - r[JAC_RRM1]*f_ps[k-1] - r[JAC_RRM2]*f_ps[k-2] );
+  return r[CPSI_RHS]*( r[INRMAX] - r[JAC_RRM1]*f_ps[k-1] - r[JAC_RRM2]*f_ps[k-2] );
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 inline dbl fda_hyp_resPs(const VD& old_ps, const VD& f_ps, const VD& cn_xi, const VD& cn_pi, const VD& cn_al,
 			 const VD& cn_be, const VD& cn_ps, MAPID& r, int k)
 {
-  return r[INDT]*(f_ps[k] - old_ps[k]) - cn_be[k]*ddr_c(cn_ps,r,k)
-    - r[TWELFTH]*(ddr_c(cn_be,r,k) + 2*cn_be[k]*r[-k])*(f_ps[k] + old_ps[k]);
+  return r[INDT]*( f_ps[k] - old_ps[k] - r[LAM2VAL]*cn_be[k]*d_c(cn_ps,k)
+		   - r[LAM6VAL]*(0.25*d_c(cn_be,k) + cn_be[k]*r[DRVAL]*r[-k])*(f_ps[k] + old_ps[k]) );
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 inline dbl fdaR_hyp_resPs(const VD& f_ps, MAPID& r, int k)
 {
-  return r[JAC_RR]*f_ps[k] + r[JAC_RRM1]*f_ps[k-1] + r[JAC_RRM2]*f_ps[k-2] - r[INDR];
+  return r[JAC_RR]*f_ps[k] + r[JAC_RRM1]*f_ps[k-1] + r[JAC_RRM2]*f_ps[k-2] - r[INRMAX];
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -194,21 +194,21 @@ inline dbl iresalpha_c(const VD& xi, const VD& pi,
     - pw4(psi[k])*sq(r*d_urinv_c(beta,k,dr,r)) / (6*alpha[k]); }
 
 
-inline double irespsi_f(const vector<double>& xi, const vector<double>& pi,
-			const vector<double>& alpha, const vector<double>& beta,
-			const vector<double>& psi, int ind, double lam, double dr, double r) {
+inline dbl irespsi_f(const VD& xi, const VD& pi,
+			const VD& alpha, const VD& beta,
+			const VD& psi, int ind, dbl lam, dbl dr, dbl r) {
   return d2_f(psi,ind) + sq(dr)*psi[ind]*M_PI*(sq(xi[ind]) + sq(pi[ind])) + dr*d_f(psi,ind)/r
     + pw5(psi[ind])*sq(r*d_urinv_f(beta,ind,dr,r)) / (48*sq(alpha[ind])); }
 
-inline double iresbeta_f(const vector<double>& xi, const vector<double>& pi,
-			 const vector<double>& alpha, const vector<double>& beta,
-			 const vector<double>& psi, int ind, double lam, double dr, double r) {
+inline dbl iresbeta_f(const VD& xi, const VD& pi,
+			 const VD& alpha, const VD& beta,
+			 const VD& psi, int ind, dbl lam, dbl dr, dbl r) {
   return d2_f(beta,ind) + sq(dr)*12*M_PI*alpha[ind]*xi[ind]*pi[ind] / sq(psi[ind]) +
     0.25*r*d_urinv_f(beta,ind,dr,r)*(6*d_f(psi,ind)/psi[ind] - d_f(alpha,ind)/alpha[ind] + 4*dr/r); }
 
-inline double iresalpha_f(const vector<double>& xi, const vector<double>& pi,
-			  const vector<double>& alpha, const vector<double>& beta,
-			  const vector<double>& psi, int ind, double lam, double dr, double r) {
+inline dbl iresalpha_f(const VD& xi, const VD& pi,
+			  const VD& alpha, const VD& beta,
+			  const VD& psi, int ind, dbl lam, dbl dr, dbl r) {
   return d2_f(alpha,ind) - sq(dr)*8*M_PI*alpha[ind]*sq(pi[ind])
     + 0.25*d_f(alpha,ind)*(d_f(psi,ind)/psi[ind] + 4*dr/r)
     - pw4(psi[ind])*sq(r*d_urinv_f(beta,ind,dr,r)) / (6*alpha[ind]); }

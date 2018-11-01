@@ -13,6 +13,7 @@
 #include "fda-io.h"
 #include "fda-fns.h"
 #include "ekg-fns.h"
+#include "old_jacobian.h"
 #include "jacobian.h"
 #include "ekg-proc.h"
 #include "lapacke.h"
