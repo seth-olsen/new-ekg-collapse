@@ -28,6 +28,9 @@ void hyp_solve_px_fast(const VD& old_xi, const VD& old_pi, VD& f_xi, VD& f_pi, V
 		       const VD& cn_al, const VD& cn_be, const VD& cn_ps, MAPID& r, int lastpt);
 void hyp_solve(const VD& old_xi, const VD& old_pi, VD& f_xi, VD& f_pi, VD& cn_xi, VD& cn_pi,
 	       const VD& cn_al, const VD& cn_be, const VD& cn_ps, MAPID& r, int lastpt);
+void hyp_solve_ppx_slow(const VD& old_xi, const VD& old_pi, const VD& old_ps,
+			VD& f_xi, VD& f_pi, VD& f_ps, VD& cn_xi, VD& cn_pi,
+			const VD& cn_al, const VD& cn_be, const VD& cn_ps, MAPID& r, int lastpt);
 // set res_vals to be residual = L[f] for rhs of jacobian.(-delta) = residual
 // get inf-norm of residuals, residuals vector set
 dbl full_res0clean(VD& residuals, const VD& old_xi, const VD& old_pi,
@@ -37,6 +40,10 @@ dbl full_res0clean(VD& residuals, const VD& old_xi, const VD& old_pi,
 dbl get_hyp_res(VD& residuals, const VD& old_xi, const VD& old_pi, const VD& f_xi, const VD& f_pi,
 		const VD& cn_xi, const VD& cn_pi, const VD& cn_al, const VD& cn_be, const VD& cn_ps,
 		MAPID& r, int lastpt);
+dbl get_hyp_res_ppx(VD& res_hyp, const VD& old_xi, const VD& old_pi, const VD& old_ps,
+		    const VD& f_xi, const VD& f_pi, const VD& f_ps,
+		    const VD& cn_xi, const VD& cn_pi, const VD& cn_al, const VD& cn_be, const VD& cn_ps,
+		    MAPID& r, int lastpt);
 dbl get_hyp_res_fast(VD& residuals, const VD& old_xi, const VD& old_pi, const VD& f_xi, const VD& f_pi,
 		     const VD& cn_xi, const VD& cn_pi, const VD& cn_al, const VD& cn_be, const VD& cn_ps,
 		     MAPID& r, int lastpt);
@@ -44,6 +51,8 @@ void get_ell_res_abpclean_join(VD& res_ell, const VD& f_xi, const VD& f_pi, cons
 			       const VD& f_ps, MAPID& r, int lastpt);
 void get_ell_res_abp_fast(VD& res_ell, const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be,
 			  const VD& f_ps, MAPID& r, int lastpt);
+void get_ell_res_ab_slow(VD& res_ell, const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be,
+			 const VD& f_ps, MAPID& r, int lastpt);
 void get_ell_res_pbaclean_join(VD& res_ell, const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be,
 			       const VD& f_ps, MAPID& r, int lastpt);
 double get_ell_res_ind(VD& res_al, VD& res_be, VD& res_ps, const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be,
@@ -56,6 +65,8 @@ inline void get_resPs(VD& res_ps, const VD& f_xi, const VD& f_pi, const VD& f_al
 		      MAPID& r, int lastpt);
 
 inline void apply_up_field(const VD& deltas, VD& field, int npts);
+inline void apply_up_ab(const VD& deltas, VD& f_al, VD& f_be, int npts);
+inline void apply_up_ab_cn(const VD& deltas, VD& f_al, VD& f_be, int npts);
 inline void apply_up_abp_join(const VD& deltas, VD& f_al, VD& f_be, VD& f_ps, int npts);
 inline void apply_up_abp_join_cn(const VD& deltas, const VD& old_al, const VD& old_be, const VD& old_ps,
 				 VD& f_al, VD& f_be, VD& f_ps, VD& cn_al, VD& cn_be, VD& cn_ps, int npts);
@@ -174,6 +185,34 @@ void hyp_solve(const VD& old_xi, const VD& old_pi, VD& f_xi, VD& f_pi, VD& cn_xi
   return;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
+void hyp_solve_ppx_slow(const VD& old_xi, const VD& old_pi, const VD& old_ps, VD& f_xi, VD& f_pi, VD& f_ps,
+			VD& cn_xi, VD& cn_pi, const VD& cn_al, const VD& cn_be, VD& cn_ps, MAPID& r, int lastpt)
+{
+  neumann0(f_ps);
+  cn_ps[0] = 0.5 * (old_ps[0] + f_ps[0]);
+  neumann0(f_pi);
+  cn_pi[0] = 0.5 * (old_pi[0] + f_pi[0]);
+  for (int k = 1; k < lastpt; ++k) {
+    // update f_ps & cn_ps
+    f_ps[k] = fda_hyp_ps(old_ps, cn_xi, cn_pi, cn_al, cn_be, cn_ps, r, k);
+    cn_ps[k] = 0.5 * (old_ps[k] + f_ps[k]);
+    // update f_pi & cn_pi
+    f_pi[k] = fda_pi(old_pi, cn_xi, cn_pi, cn_al, cn_be, cn_ps, r, k);
+    cn_pi[k] = 0.5 * (old_pi[k] + f_pi[k]);
+    // update f_xi & cn_xi
+    f_xi[k] = fda_xi(old_xi, cn_xi, cn_pi, cn_al, cn_be, cn_ps, r, k);
+    cn_xi[k] = 0.5 * (old_xi[k] + f_xi[k]);
+  }
+  // r = R BOUNDARY
+  f_ps[lastpt] = fdaR_hyp_ps(f_ps, r, lastpt);
+  cn_ps[lastpt] = 0.5 * (old_ps[lastpt] + f_ps[lastpt]);
+  sommerfeld(old_pi, f_pi, r, lastpt);
+  cn_pi[lastpt] = 0.5 * (old_pi[lastpt] + f_pi[lastpt]);
+  sommerfeld(old_xi, f_xi, r, lastpt);
+  cn_xi[lastpt] = 0.5 * (old_xi[lastpt] + f_xi[lastpt]);
+  return;
+}
+////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // set res_vals to be residual = L[f] for rhs of jacobian.(-delta) = residual
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -217,6 +256,28 @@ dbl get_hyp_res(VD& res_hyp, const VD& old_xi, const VD& old_pi, const VD& f_xi,
   }
   res_hyp[lastpt] = sommerfeldres(old_xi, f_xi, r, lastpt);
   res_hyp[kpi + lastpt] = sommerfeldres(old_pi, f_pi, r, lastpt);
+  return max(  *max_element(res_hyp.begin(), res_hyp.end()),
+	      -(*min_element(res_hyp.begin(), res_hyp.end()))  );
+}
+
+dbl get_hyp_res_ppx(VD& res_hyp, const VD& old_xi, const VD& old_pi, const VD& old_ps,
+		    const VD& f_xi, const VD& f_pi, const VD& f_ps,
+		    const VD& cn_xi, const VD& cn_pi, const VD& cn_al, const VD& cn_be, const VD& cn_ps,
+		    MAPID& r, int lastpt)
+{
+  int kpi = lastpt + 1;
+  int kps = 2 * kpi;
+  res_hyp[0] = dirichlet0res(f_xi);
+  res_hyp[kpi] = neumann0res(f_pi, r);
+  res_hyp[kps] = neumann0res(f_ps, r);
+  for (int k = 1; k < lastpt; ++k) {
+    res_hyp[k] = fda_resXi(old_xi, f_xi, cn_xi, cn_pi, cn_al, cn_be, cn_ps, r, k);
+    res_hyp[kpi + k] = fda_resPi(old_pi, f_pi, cn_xi, cn_pi, cn_al, cn_be, cn_ps, r, k);
+    res_hyp[kps + k] = fda_hyp_resPs(old_ps, f_ps, cn_xi, cn_pi, cn_al, cn_be, cn_ps, r, k);
+  }
+  res_hyp[lastpt] = sommerfeldres(old_xi, f_xi, r, lastpt);
+  res_hyp[kpi + lastpt] = sommerfeldres(old_pi, f_pi, r, lastpt);
+  res_hyp[kps + lastpt] = fdaR_hyp_resPs(f_ps, r, lastpt);
   return max(  *max_element(res_hyp.begin(), res_hyp.end()),
 	      -(*min_element(res_hyp.begin(), res_hyp.end()))  );
 }
@@ -300,6 +361,21 @@ void get_ell_res_abp_fast(VD& res_ell, const VD& f_xi, const VD& f_pi, const VD&
   return;
 }
 
+void get_ell_res_ab_slow(VD& res_ell, const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be,
+			 const VD& f_ps, MAPID& r, int lastpt)
+{
+  int kbe = lastpt + 1;
+  res_ell[0] = neumann0res(f_al, r);
+  res_ell[kbe] = dirichlet0res(f_be);
+  for (int k = 1; k < lastpt; ++k) {
+    res_ell[k] = fda_resAl(f_xi, f_pi, f_al, f_be, f_ps, r, k);
+    res_ell[kbe + k] = fda_resBe(f_xi, f_pi, f_al, f_be, f_ps, r, k);
+  }
+  res_ell[lastpt] = fdaR_resAl(f_al, r, lastpt);
+  res_ell[kbe + lastpt] = fdaR_resBe(f_be, r, lastpt);
+  return;
+}
+
 // ******** NOW THIS JOINS P->B->A
 void get_ell_res_pbaclean_join(VD& res_ell, const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be,
 			       const VD& f_ps, MAPID& r, int lastpt)
@@ -366,13 +442,33 @@ inline void apply_up_field(const VD& deltas, VD& field, int npts)
   return;
 }
 
+inline void apply_up_ab(const VD& deltas, VD& f_al, VD& f_be, int npts)
+{
+  for (int k = 0; k < npts; ++k) {
+    f_al[k] -= deltas[k];
+    f_be[k] -= deltas[npts + k];
+  }
+  return;
+}
+
+inline void apply_up_ab_cn(const VD& deltas, const VD& old_al, const VD& old_be,
+			   VD& f_al, VD& f_be, VD& cn_al, VD& cn_be, int npts)
+{
+  for (int k = 0; k < npts; ++k) {
+    f_al[k] -= deltas[k];
+    f_be[k] -= deltas[npts + k];
+    cn_al[k] = 0.5 * (old_al[k] + f_al[k]);
+    cn_be[k] = 0.5 * (old_be[k] + f_be[k]);
+  }
+  return;
+}
+
 inline void apply_up_abp_join(const VD& deltas, VD& f_al, VD& f_be, VD& f_ps, int npts)
 {
-  int kbe = npts;
   int kps = 2*npts;
   for (int k = 0; k < npts; ++k) {
     f_al[k] -= deltas[k];
-    f_be[k] -= deltas[kbe + k];
+    f_be[k] -= deltas[npts + k];
     f_ps[k] -= deltas[kps + k];
   }
   return;
@@ -381,16 +477,14 @@ inline void apply_up_abp_join(const VD& deltas, VD& f_al, VD& f_be, VD& f_ps, in
 inline void apply_up_abp_join_cn(const VD& deltas, const VD& old_al, const VD& old_be, const VD& old_ps,
 				 VD& f_al, VD& f_be, VD& f_ps, VD& cn_al, VD& cn_be, VD& cn_ps, int npts)
 {
-  int kbe = npts;
   int kps = 2*npts;
   for (int k = 0; k < npts; ++k) {
     f_al[k] -= deltas[k];
-    f_be[k] -= deltas[kbe];
-    f_ps[k] -= deltas[kps];
+    f_be[k] -= deltas[npts + k];
+    f_ps[k] -= deltas[kps + k];
     cn_al[k] = 0.5 * (old_al[k] + f_al[k]);
     cn_be[k] = 0.5 * (old_be[k] + f_be[k]);
     cn_ps[k] = 0.5 * (old_ps[k] + f_ps[k]);
-    ++kbe; ++kps;
   }
   return;
 }

@@ -11,6 +11,13 @@ LDFLAGS	 	 = -Wall ${DEBUG}
 LDLIBS		 = -lbbhutil -L$(LIBDIR_LAPACK) -llapacke -llapack -lblas -L$(LGFORTRAN_PATH) -lgfortran -lm
 LOCDIR		 = home/seth/research
 
+ekg-hypPs: ekg-hypPs.o
+	-${CXX} -o ekg-hypPs ekg-hypPs.o ${LDLIBS}
+	rm -f ekg-hypPs.o
+
+ekg-hypPs.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h ekg-hypPs.cpp
+	$(CXX) -c $(CXXFLAGS) ekg-hypPs.cpp
+
 ekg-slow: ekg-slow.o
 	-${CXX} -o ekg-slow ekg-slow.o ${LDLIBS}
 	rm -f ekg-slow.o

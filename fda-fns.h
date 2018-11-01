@@ -1,7 +1,7 @@
 #ifndef FDA_FNS_H_INCLUDED
 #define FDA_FNS_H_INCLUDED
 
-#ifndef INDRSQ
+#ifndef NEG2INDRSQ
 #define INDRSQ 32500
 #define IN2DR 32501
 #define INDR 32502
@@ -30,6 +30,10 @@
 #define JAC_N01 32525
 #define JAC_N02 32526
 #define DT_TWELVE 32527
+#define CPSI_RHS 32528
+#define CPSI_RR 32529
+#define CPSI_RRM1 32530
+#define CPSI_RRM2 32531
 #endif
 
 #include <vector> // for everything

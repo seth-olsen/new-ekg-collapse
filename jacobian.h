@@ -29,6 +29,9 @@ void set_jacCMabpslow(VD& jac, const VD& f_xi, const VD& f_pi,
 void set_jacCMabpfast(VD& jac, const VD& f_xi, const VD& f_pi,
 		      const VD& f_al, const VD& f_be, const VD& f_ps, MAPID& r,
 		      int npts, int kl, int ku, int ldab);
+void set_jacCM_ab_slow(VD& jac, const VD& f_xi, const VD& f_pi,
+		       const VD& f_al, const VD& f_be, const VD& f_ps, MAPID& r,
+		       int npts, int kl, int ku, int ldab);
 inline void set_jac_alphaCM(VD& jac, const VD& f_xi, const VD& f_pi,
 			    const VD& f_al, const VD& f_be, const VD& f_ps, MAPID& r,
 			    int npts, int kl, int ku, int ldab);
@@ -418,7 +421,7 @@ void set_jacCMabpclean(VD& jac, const VD& f_xi, const VD& f_pi,
   return;
 }
 
-// *******IMPLEMENT THIS *****************
+
 void set_jacCMabpfast(VD& jac, const VD& f_xi, const VD& f_pi,
 		      const VD& f_al, const VD& f_be, const VD& f_ps, MAPID& r,
 		      int npts, int kl, int ku, int ldab)
@@ -549,6 +552,47 @@ void set_jacCMabpslow(VD& jac, const VD& f_xi, const VD& f_pi,
   jac[jac_ind(j,k)] = r[JAC_RR];
   jac[jac_ind(jbe,kbe)] = r[JAC_RR];
   jac[jac_ind(jps,kps)] = r[JAC_RR];
+  return;
+}
+
+void set_jacCM_ab_slow(VD& jac, const VD& f_xi, const VD& f_pi,
+		       const VD& f_al, const VD& f_be, const VD& f_ps, MAPID& r,
+		       int npts, int kl, int ku, int ldab)
+{
+  int one_past_last = npts - 1;
+  int j = 0, jbe = npts;
+  // ROW 0, COL 0
+  jac[jac_ind(j,j)] = r[JAC_N00];
+  jac[jac_ind(jbe,jbe)] = 1;
+  // ROW 0, COL 1
+  jac[jac_ind(j,j + 1)] = r[JAC_N01];
+  jac[jac_ind(jbe,jbe + 1)] = 0;
+  // ROW 0, COL 2
+  jac[jac_ind(j,j + 2)] = r[JAC_N02];
+  jac[jac_ind(jbe,jbe + 2)] = 0;
+  for (j = 1; j < one_past_last; ++j) {
+    jbe = j + npts;
+    // ROW j, COL j-1
+    jac[jac_ind(j,j - 1)] = jac_aa_pm(f_al, f_be, f_ps, r, j, -1);
+    jac[jac_ind(jbe,jbe - 1)] = jac_bb_pm(f_al, f_be, f_ps, r, j, -1);
+    // ROW j, COL j
+    jac[jac_ind(j,j)] = jac_aa(f_xi, f_pi, f_al, f_be, f_ps, r, j);
+    jac[jac_ind(jbe,jbe)] = jac_bb(f_al, f_be, f_ps, r, j);
+    // ROW j+1, COL j
+    jac[jac_ind(j,j + 1)] = jac_aa_pm(f_al, f_be, f_ps, r, j, 1);
+    jac[jac_ind(jbe,jbe + 1)] = jac_bb_pm(f_al, f_be, f_ps, r, j, 1);
+  }
+  j = one_past_last;
+  jbe = j + npts;
+  // ROW lastpt, COL lastpt-2
+  jac[jac_ind(j,j - 2)] = r[JAC_RRM2];
+  jac[jac_ind(jbe,jbe - 2)] = r[JAC_RRM2];
+  // ROW lastpt, COL lastpt-1
+  jac[jac_ind(j,j - 1)] = r[JAC_RRM1];
+  jac[jac_ind(jbe,jbe - 1)] = r[JAC_RRM1];
+  // ROW lastpt, COL lastpt
+  jac[jac_ind(j,j)] = r[JAC_RR];
+  jac[jac_ind(jbe,jbe)] = r[JAC_RR];
   return;
 }
 

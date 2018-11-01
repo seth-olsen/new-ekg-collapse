@@ -1,4 +1,4 @@
-#ifndef INDRSQ
+#ifndef NEG2INDRSQ
 #define INDRSQ 32500
 #define IN2DR 32501
 #define INDR 32502
@@ -27,6 +27,10 @@
 #define JAC_N01 32525
 #define JAC_N02 32526
 #define DT_TWELVE 32527
+#define CPSI_RHS 32528
+#define CPSI_RR 32529
+#define CPSI_RRM1 32530
+#define CPSI_RRM2 32531
 #endif
 
 #include <iostream>
@@ -243,6 +247,7 @@ int main(int argc, char **argv)
     dbl dt = lam * dr;
     MAPID r { {DRVAL,dr}, {DTVAL,dt}, {RMIN,rmin}, {RMAX,rmax},
 	      {LAMVAL,lam}, {LAM2VAL,lam2}, {LAM6VAL,lam6}, {WRITEDR,wr_dr} };
+
     r[INDR] = 1 / dr;
     r[IN2DR] = 0.5*r[INDR];
     r[INDRSQ] = sq(r[INDR]);
@@ -263,6 +268,10 @@ int main(int argc, char **argv)
     r[JAC_N01] = 4 * r[IN2DR];
     r[JAC_N02] = -1 * r[IN2DR];
     r[DT_TWELVE] = r[TWELFTH] * dt;
+    r[CPSI_RR] = 1 + 3*r[RMAX]*r[IN2DR];
+    r[CPSI_RHS] = 1 / r[CPSI_RR];
+    r[CPSI_RRM1] = -2*r[RMAX]*r[INDR];
+    r[CPSI_RRM2] = r[RMAX]*r[IN2DR];
     
 // **********************************************************
 //                      WRITE START
