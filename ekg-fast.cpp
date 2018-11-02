@@ -253,32 +253,8 @@ int main(int argc, char **argv)
     if (resnorm_type == 1) { norm_factor = sqrt(norm_factor); }
     dbl dr = (rmax - rmin) / ((dbl) lastpt);
     dbl dt = lam * dr;
-    MAPID r { {DRVAL,dr}, {DTVAL,dt}, {RMIN,rmin}, {RMAX,rmax},
-	      {LAMVAL,lam}, {LAM2VAL,lam2}, {LAM6VAL,lam6}, {WRITEDR,wr_dr} };
-
-    r[INDR] = 1 / dr;
-    r[IN2DR] = 0.5*r[INDR];
-    r[INDRSQ] = sq(r[INDR]);
-    r[INDT] = 1 / dt;
-    r[INRMAX] = 1 / rmax;
-    r[NEG2INDRSQ] = -2 * r[INDRSQ];
-    r[CSOMM] = 0.75*lam + 0.5*dt*r[INRMAX]; // for field's outer bc
-    r[TWO_THIRDS] = 2 * one_third;
-    r[FOUR_THIRDS] = 2 * r[TWO_THIRDS];
-    r[TWELFTH] = 0.25 * one_third;
-    r[FIVE_TWELFTHS] = 5 * r[TWELFTH];
-    r[EIGHT_PI] = eight_M_PI;
-    r[TWELVE_PI] = 1.5 * r[EIGHT_PI];
-    r[JAC_RR] = (3 * r[IN2DR]) + r[INRMAX];
-    r[JAC_RRM1] = -4 * r[IN2DR];
-    r[JAC_RRM2] = r[IN2DR];
-    r[JAC_N00] = -3 * r[IN2DR];
-    r[JAC_N01] = 4 * r[IN2DR];
-    r[JAC_N02] = -1 * r[IN2DR];
-    r[DT_TWELVE] = r[TWELFTH] * dt;
-    r[CPSI_RHS] = 1 / r[JAC_RR];
-    r[CSOMM_RHS] = 1 / (1 + r[CSOMM]);
-    r[CSOMM_OLD] = 1 - r[CSOMM];
+    MAPID r {{WRITEDR,wr_dr}};
+    set_rmap(r, lastpt, dr, dt, lam, rmin, rmax);
     
 // **********************************************************
 //                      WRITE START

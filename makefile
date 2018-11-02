@@ -11,27 +11,6 @@ LDFLAGS	 	 = -Wall ${DEBUG}
 LDLIBS		 = -lbbhutil -L$(LIBDIR_LAPACK) -llapacke -llapack -lblas -L$(LGFORTRAN_PATH) -lgfortran -lm
 LOCDIR		 = home/seth/research
 
-ekg-H: ekg-hypPs.o
-	-${CXX} -o ekg-H ekg-hypPs.o ${LDLIBS}
-	rm -f ekg-hypPs.o
-
-ekg-hypPs: ekg-hypPs.o
-	-${CXX} -o ekg-hypPs ekg-hypPs.o ${LDLIBS}
-	rm -f ekg-hypPs.o
-
-ekg-hypPs.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h ekg-hypPs.cpp
-	$(CXX) -c $(CXXFLAGS) ekg-hypPs.cpp
-
-ekg-E: ekg-slow.o
-	-${CXX} -o ekg-E ekg-slow.o ${LDLIBS}
-	rm -f ekg-slow.o
-
-ekg-slow: ekg-slow.o
-	-${CXX} -o ekg-slow ekg-slow.o ${LDLIBS}
-	rm -f ekg-slow.o
-
-ekg-slow.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h ekg-slow.cpp
-	$(CXX) -c $(CXXFLAGS) ekg-slow.cpp
 
 ekg-fast: ekg-fast.o
 	-${CXX} -o ekg-fast ekg-fast.o ${LDLIBS}
@@ -45,12 +24,19 @@ ekg-conv: fda-io.h ekg-conv.cpp
 	$(CXX) -o ekg-conv ekg-conv.o ${LDLIBS}
 	rm -f ekg-conv.o
 
-test: test.o
-	-${CXX} -o test test.o ${LDLIBS}
-	rm -f test.o
+test-code: test-code.o
+	-${CXX} -o test-code test-code.o ${LDLIBS}
+	rm -f test-code.o
 
-test.o: ekg-proc.h ekg-clean.h ekg-fns.h fda-fns.h fda-io.h test.cpp
-	$(CXX) -c $(CXXFLAGS) test.cpp
+test-code.o: ekg-proc.h ekg-clean.h ekg-fns.h fda-fns.h fda-io.h test-code.cpp
+	$(CXX) -c $(CXXFLAGS) test-code.cpp
+
+test-data: test-data.o
+	-${CXX} -o test-data test-data.o ${LDLIBS}
+	rm -f test-data.o
+
+test-data.o: ekg-proc.h ekg-clean.h ekg-fns.h fda-fns.h fda-io.h test-data.cpp
+	$(CXX) -c $(CXXFLAGS) test-data.cpp
 
 .PHONY : clean
 clean :
