@@ -2,6 +2,7 @@
 #define FDA_FNS_H_INCLUDED
 
 #ifndef NEG2INDRSQ
+#define NORM_FACTOR 32504
 #define INDRSQ 32500
 #define IN2DR 32501
 #define INDR 32502
@@ -33,6 +34,30 @@
 #define CPSI_RHS 32528
 #define CSOMM_RHS 32529
 #define CSOMM_OLD 32530
+#define DSPN_WEIGHT 32531
+#define EUP_WEIGHT 32532
+#define HYPTOL 32533
+#define ELLTOL 32534
+#endif
+
+#ifndef RESN_FACTOR
+#define LASTPOINT 32535
+#define SAVEPOINT 32536
+#define LASTSTEP 32537
+#define SAVESTEP 32538
+#define NUM_POINTS 32539
+#define NUM_ELL 32540
+#define NUM_HYP 32541
+#define RESN_FACTOR 32542
+#define LASTWRITE 32543
+#define WRITESHAPE 32544
+#define LP_N 32545
+#define LP_KL 32546
+#define LP_KU 32547
+#define LP_NRHS 32548
+#define LP_LDAB 32549
+#define LP_LDB 32550
+#define MAX_ITN 32551
 #endif
 
 #include <iostream>
@@ -48,6 +73,7 @@ typedef double dbl;
 typedef vector<dbl> VD;
 
 typedef map<int, double> MAPID;
+typedef map<int, double> MAPII;
 
 // x^n and 1/x^n
 inline dbl sq(dbl x) { return (x*x); }
@@ -62,7 +88,8 @@ inline dbl norm_inf(const VD& vec)
 	     -(*min_element(vec.begin(), vec.end())) );
 }
 
-// initialize r with r{ {WRITEDR, wr_dr} } then pass to set
+// before passing initialize r with r{ {WRITEDR, wr_dr},{HYPTOL,tol},
+// {ELLTOL,ell_tol},{EUP_WEIGHT,ell_up_weight},{DSPN_WEIGHT,dspn} }
 void set_rmap(MAPID& r, int lastpt,
 	      dbl dr, dbl dt, dbl lam, dbl rmin, dbl rmax)
 {
@@ -105,6 +132,32 @@ void set_rmap(MAPID& r, int lastpt,
   r[CPSI_RHS] = 1 / r[JAC_RR];
   r[CSOMM_RHS] = 1 / (1 + r[CSOMM]);
   r[CSOMM_OLD] = 1 - r[CSOMM];
+  return;
+}
+// before passing initialize z with z{ {MAX_ITN,maxit},{RESN_FACTOR,factor} }
+void set_zmap(MAPII& z, int lastwr, int lastpt, int save_pt, int nsteps, int save_step,
+	      int n_ell, int kl, int ku)
+{
+  // check that grid size (lastpt = npts-1) is divisible by save_pt 
+  if (lastpt % save_pt != 0) {
+    cout << "ERROR: save_pt = " << save_pt << " entered for grid size " << lastpt << endl;
+  }
+  if (lastwr * save_pt != lastpt) { cout << "ERROR: save_pt * lastwr !=  lastpt"<< endl; }
+  z[LASTPOINT] = lastpt;
+  z[SAVEPOINT] = save_pt;
+  z[LASTSTEP] = nsteps;
+  z[SAVESTEP] = save_step;
+  z[NUM_POINTS] = lastpt + 1;
+  z[NUM_ELL] = n_ell;
+  z[NUM_HYP] = 5 - n_ell;
+  z[LASTWRITE] = lastwr;
+  z[WRITESHAPE] = lastwr + 1;
+  z[LP_N] = n_ell * z[NUM_POINTS];
+  z[LP_KL] = kl;
+  z[LP_KU] = ku;
+  z[LP_NRHS] = 1;
+  z[LP_LDAB] = 2*kl + ku + 1;
+  z[LP_LDB] = z[LP_N];
   return;
 }
 

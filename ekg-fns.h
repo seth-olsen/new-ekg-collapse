@@ -28,7 +28,6 @@ inline dbl fda_pi(const VD& old_pi, const VD& cn_xi, const VD& cn_pi, const VD& 
     / (1 + lam6_part);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
 // *****************************CHECK
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,10 +55,6 @@ inline dbl fdaR_hyp_resPs(const VD& f_ps, MAPID& r, int k)
   return r[JAC_RR]*f_ps[k] + r[JAC_RRM1]*f_ps[k-1] + r[JAC_RRM2]*f_ps[k-2] - r[INRMAX];
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////
-// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 inline dbl fda_resXi(const VD& old_xi, const VD& f_xi, const VD& cn_xi, const VD& cn_pi,
 		     const VD& cn_al, const VD& cn_be, const VD& cn_ps, MAPID& r, int k)
@@ -83,43 +78,33 @@ inline dbl fda_resPi(const VD& old_pi, const VD& f_pi, const VD& cn_xi, const VD
 inline dbl fda_resPs(const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be, const VD& f_ps,
 		     MAPID& r, int k)
 {
-  return ddr2_c(f_ps,r,k) + M_PI * f_ps[k] * (sq(f_xi[k]) + sq(f_pi[k])) +
-    2*r[-k]*ddr_c(f_ps,r,k) +
-    pw5(f_ps[k]) * sq(ddr_c(f_be,r,k) - r[-k]*f_be[k]) / (12*sq(f_al[k]));
+  return ddr2_c(f_ps,r,k) + M_PI*f_ps[k]*(sq(f_xi[k]) + sq(f_pi[k])) + 2*r[-k]*ddr_c(f_ps,r,k)
+    + r[TWELFTH]*pw5(f_ps[k])*sq(ddr_c(f_be,r,k) - r[-k]*f_be[k]) / sq(f_al[k]);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 inline dbl fda_resBe(const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be, const VD& f_ps,
 		     MAPID& r, int k)
 {
-  return ddr2_c(f_be,r,k)
-    + 12 * M_PI * f_al[k] * f_xi[k] * f_pi[k] / sq(f_ps[k])
-    + ( (ddr_c(f_be,r,k) - r[-k]*f_be[k]) *
-	(2*r[-k] + 6*(ddr_c(f_ps,r,k)/f_ps[k]) - (ddr_c(f_al,r,k)/f_al[k])) );
+  return ddr2_c(f_be,r,k) + r[TWELVE_PI]*f_al[k]*f_xi[k]*f_pi[k] / sq(f_ps[k])
+    + (ddr_c(f_be,r,k) - r[-k]*f_be[k])*(2*r[-k] + 6*(ddr_c(f_ps,r,k)/f_ps[k]) - (ddr_c(f_al,r,k)/f_al[k]));
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 inline dbl fda_resAl(const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be, const VD& f_ps,
 		     MAPID& r, int k)
 {
-  return ddr2_c(f_al,r,k)
-    - 8 * M_PI * f_al[k] * sq(f_pi[k])
-    + 2 * ddr_c(f_al,r,k) * (r[-k] + (ddr_c(f_ps,r,k)/f_ps[k]))
-    - (2 * pw4(f_ps[k]) * sq(ddr_c(f_be,r,k) - r[-k]*f_be[k]) / (3*f_al[k]));
+  return ddr2_c(f_al,r,k) - r[EIGHT_PI]*f_al[k]*sq(f_pi[k])
+    + 2*ddr_c(f_al,r,k)*(r[-k] + (ddr_c(f_ps,r,k)/f_ps[k]))
+    - r[TWO_THIRDS]*pw4(f_ps[k])*sq(ddr_c(f_be,r,k) - r[-k]*f_be[k]) / f_al[k];
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 inline dbl fdaR_resPs(const VD& f_ps, MAPID& r, int k)
 { return ddr_b(f_ps,r,k) + r[INRMAX]*(f_ps[k] - 1); }
-inline dbl RxfdaR_resPs(const VD& f_ps, MAPID& r, int k)
-{ return r[k]*ddr_b(f_ps,r,k) + f_ps[k] - 1; }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 inline dbl fdaR_resBe(const VD& f_be, MAPID& r, int k)
 { return ddr_b(f_be,r,k) + r[INRMAX]*f_be[k]; }
-inline dbl RxfdaR_resBe(const VD& f_be, MAPID& r, int k)
-{ return r[k]*ddr_b(f_be,r,k) + f_be[k]; }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 inline dbl fdaR_resAl(const VD& f_al, MAPID& r, int k)
 { return ddr_b(f_al,r,k) + r[INRMAX]*(f_al[k] - 1); }
-inline dbl RxfdaR_resAl(const VD& f_al, MAPID& r, int k)
-{ return r[k]*ddr_b(f_al,r,k) + f_al[k] - 1; }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // **********************************************************
 // **********************************************************
@@ -176,42 +161,53 @@ inline dbl irespsi_c(const VD& xi, const VD& pi,
 		     const VD& alpha, const VD& beta,
 		     const VD& psi, int k, dbl lam, dbl dr, dbl r)
 {
-  return d2_c(psi,k) + sq(dr)*psi[k]*M_PI*(sq(xi[k]) + sq(pi[k])) + dr*d_c(psi,k)/r
-    + pw5(psi[k])*sq(r*d_urinv_c(beta,k,dr,r)) / (48*sq(alpha[k]));
+  return (psi[k+1] - psi[k-1]) / (2*dr);
+    //d2_c(psi,k) + sq(dr)*psi[k]*M_PI*(sq(xi[k]) + sq(pi[k])) + dr*d_c(psi,k)/r
+    //+ pw5(psi[k])*sq(r*d_urinv_c(beta,k,dr,r)) / (48*sq(alpha[k]));
 }
 
 inline dbl iresbeta_c(const VD& xi, const VD& pi,
 		      const VD& alpha, const VD& beta,
 		      const VD& psi, int k, dbl lam, dbl dr, dbl r)
-{ return d2_c(beta,k) + sq(dr)*12*M_PI*alpha[k]*xi[k]*pi[k] / sq(psi[k]) +
-    0.25*r*d_urinv_c(beta,k,dr,r)*(6*d_c(psi,k)/psi[k] - d_c(alpha,k)/alpha[k] + 4*dr/r); }
+{ return (beta[k+1] - beta[k-1]) / (2*dr);
+    //d2_c(beta,k) + sq(dr)*12*M_PI*alpha[k]*xi[k]*pi[k] / sq(psi[k]) +
+    //0.25*r*d_urinv_c(beta,k,dr,r)*(6*d_c(psi,k)/psi[k] - d_c(alpha,k)/alpha[k] + 4*dr/r);
+}
 
 inline dbl iresalpha_c(const VD& xi, const VD& pi,
 		       const VD& alpha, const VD& beta,
 		       const VD& psi, int k, dbl lam, dbl dr, dbl r)
-{ return d2_c(alpha,k) - sq(dr)*8*M_PI*alpha[k]*sq(pi[k])
-    + 0.25*d_c(alpha,k)*(d_c(psi,k)/psi[k] + 4*dr/r)
-    - pw4(psi[k])*sq(r*d_urinv_c(beta,k,dr,r)) / (6*alpha[k]); }
+{ return (alpha[k+1] - alpha[k-1]) / (2*dr);
+    //d2_c(alpha,k) - sq(dr)*8*M_PI*alpha[k]*sq(pi[k])
+    //+ 0.25*d_c(alpha,k)*(d_c(psi,k)/psi[k] + 4*dr/r)
+    //- pw4(psi[k])*sq(r*d_urinv_c(beta,k,dr,r)) / (6*alpha[k]);
+}
 
 
 inline dbl irespsi_f(const VD& xi, const VD& pi,
-			const VD& alpha, const VD& beta,
-			const VD& psi, int ind, dbl lam, dbl dr, dbl r) {
-  return d2_f(psi,ind) + sq(dr)*psi[ind]*M_PI*(sq(xi[ind]) + sq(pi[ind])) + dr*d_f(psi,ind)/r
-    + pw5(psi[ind])*sq(r*d_urinv_f(beta,ind,dr,r)) / (48*sq(alpha[ind])); }
+		     const VD& alpha, const VD& beta,
+		     const VD& psi, int k, dbl lam, dbl dr, dbl r) {
+  return (-3*psi[k] + 4*psi[k+1] - psi[k+2]) / (2*dr);
+    //d2_f(psi,k) + sq(dr)*psi[k]*M_PI*(sq(xi[k]) + sq(pi[k])) + dr*d_f(psi,k)/r
+    //+ pw5(psi[k])*sq(r*d_urinv_f(beta,k,dr,r)) / (48*sq(alpha[k]));
+}
 
 inline dbl iresbeta_f(const VD& xi, const VD& pi,
-			 const VD& alpha, const VD& beta,
-			 const VD& psi, int ind, dbl lam, dbl dr, dbl r) {
-  return d2_f(beta,ind) + sq(dr)*12*M_PI*alpha[ind]*xi[ind]*pi[ind] / sq(psi[ind]) +
-    0.25*r*d_urinv_f(beta,ind,dr,r)*(6*d_f(psi,ind)/psi[ind] - d_f(alpha,ind)/alpha[ind] + 4*dr/r); }
+		      const VD& alpha, const VD& beta,
+		      const VD& psi, int k, dbl lam, dbl dr, dbl r) {
+  return (-3*beta[k] + 4*beta[k+1] - beta[k+2]) / (2*dr);
+    //d2_f(beta,k) + sq(dr)*12*M_PI*alpha[k]*xi[k]*pi[k] / sq(psi[k]) +
+    //0.25*r*d_urinv_f(beta,k,dr,r)*(6*d_f(psi,k)/psi[k] - d_f(alpha,k)/alpha[k] + 4*dr/r);
+}
 
 inline dbl iresalpha_f(const VD& xi, const VD& pi,
-			  const VD& alpha, const VD& beta,
-			  const VD& psi, int ind, dbl lam, dbl dr, dbl r) {
-  return d2_f(alpha,ind) - sq(dr)*8*M_PI*alpha[ind]*sq(pi[ind])
-    + 0.25*d_f(alpha,ind)*(d_f(psi,ind)/psi[ind] + 4*dr/r)
-    - pw4(psi[ind])*sq(r*d_urinv_f(beta,ind,dr,r)) / (6*alpha[ind]); }
+		       const VD& alpha, const VD& beta,
+		       const VD& psi, int k, dbl lam, dbl dr, dbl r) {
+  return (-3*alpha[k] + 4*alpha[k+1] - alpha[k+2]) / (2*dr);
+  //d2_f(alpha,k) - sq(dr)*8*M_PI*alpha[k]*sq(pi[k])
+  //+ 0.25*d_f(alpha,k)*(d_f(psi,k)/psi[k] + 4*dr/r)
+  //- pw4(psi[k])*sq(r*d_urinv_f(beta,k,dr,r)) / (6*alpha[k]);
+}
 
 // *********************************************
 // **************  DIAGNOSTICS  ****************

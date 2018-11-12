@@ -13,11 +13,25 @@ LOCDIR		 = home/seth/research
 
 
 ekg-fast: ekg-fast.o
-	-${CXX} -o ekg-fast ekg-fast.o ${LDLIBS}
+	-${CXX} -o ekg ekg-fast.o ${LDLIBS}
 	rm -f ekg-fast.o
 
 ekg-fast.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h ekg-fast.cpp
 	$(CXX) -c $(CXXFLAGS) ekg-fast.cpp
+
+ekg-cluster: ekg-horizon-cluster.o
+	-${CXX} -o ekg-horizon-cluster ekg-horizon-cluster.o ${LDLIBS}
+	rm -f ekg-horizon-cluster.o
+
+ekg-horizon-cluster.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h ekg-horizon-cluster.cpp
+	$(CXX) -c $(CXXFLAGS) ekg-horizon-cluster.cpp
+
+ekg-debug: ekg-debug.o
+	-${CXX} -o ekg-debug ekg-debug.o ${LDLIBS}
+	rm -f ekg-debug.o
+
+ekg-debug.o: solvers.h ekg-proc.h ekg-clean.h jacobian.h ekg-fns.h fda-fns.h fda-io.h ekg-debug.cpp
+	$(CXX) -c $(CXXFLAGS) ekg-debug.cpp
 
 ekg-conv: fda-io.h ekg-conv.cpp
 	$(CXX) -c $(CXXFLAGS) ekg-conv.cpp

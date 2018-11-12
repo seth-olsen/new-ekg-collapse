@@ -13,7 +13,6 @@
 #include "fda-io.h"
 #include "fda-fns.h"
 #include "ekg-fns.h"
-#include "old_jacobian.h"
 #include "jacobian.h"
 #include "ekg-proc.h"
 #include "lapacke.h"
@@ -32,6 +31,8 @@ void hyp_solve(const VD& old_xi, const VD& old_pi, VD& f_xi, VD& f_pi, VD& cn_xi
 void hyp_solve_ppx_slow(const VD& old_xi, const VD& old_pi, const VD& old_ps,
 			VD& f_xi, VD& f_pi, VD& f_ps, VD& cn_xi, VD& cn_pi,
 			const VD& cn_al, const VD& cn_be, const VD& cn_ps, MAPID& r, int lastpt);
+void hyp_solve_PSI_ONLY(const VD& old_ps, VD& f_ps, const VD& cn_xi, const VD& cn_pi, const VD& cn_al,
+			const VD& cn_be, VD& cn_ps, MAPID& r, int lastpt);
 // set res_vals to be residual = L[f] for rhs of jacobian.(-delta) = residual
 // get inf-norm of residuals, residuals vector set
 dbl full_res0clean(VD& residuals, const VD& old_xi, const VD& old_pi,
@@ -68,21 +69,35 @@ void get_resPs_hyp(VD& res_ps, const VD& old_ps, const VD& f_ps, const VD& cn_xi
 		   const VD& cn_al, const VD& cn_be, const VD& cn_ps, MAPID& r, int lastwr, int save_pt);
 void get_resPs_ell(VD& res_ps, const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be, const VD& f_ps,
 		   MAPID& r, int lastwr, int save_pt);
-inline void apply_up_field(const VD& deltas, VD& field, int npts);
-inline void apply_up_ab(const VD& deltas, VD& f_al, VD& f_be, int npts);
-inline void apply_up_ab_cn(const VD& deltas, VD& f_al, VD& f_be, int npts);
-inline void apply_up_abp_join(const VD& deltas, VD& f_al, VD& f_be, VD& f_ps, int npts);
+inline void apply_up_field(const VD& deltas, VD& field, MAPID&r, int npts);
+inline void apply_up_ab(const VD& deltas, VD& f_al, VD& f_be, MAPID&r, int npts);
+inline void apply_up_ab_cn(const VD& deltas, VD& f_al, VD& f_be, MAPID&r, int npts);
+inline void apply_up_abp_join(const VD& deltas, VD& f_al, VD& f_be, VD& f_ps, MAPID&r, int npts);
 inline void apply_up_abp_join_cn(const VD& deltas, const VD& old_al, const VD& old_be, const VD& old_ps,
-				 VD& f_al, VD& f_be, VD& f_ps, VD& cn_al, VD& cn_be, VD& cn_ps, int npts);
-int ell_solve_abpclean(VD& jac, VD& res_ell, const VD& old_al, const VD& old_be, const VD& old_ps,
-		       const VD& f_xi, const VD& f_pi, VD& f_al, VD& f_be, VD& f_ps,
-		       VD& cn_al, VD& cn_be, VD& cn_ps, MAPID& r, int npts,
-		       int N, int kl, int ku, int nrhs, int ldab, vector<int>& ipiv, int ldb);
-int ell_solve_abpclean_join(VD& jac, VD& res_ell, const VD& old_al, const VD& old_be, const VD& old_ps,
-			    const VD& f_xi, const VD& f_pi, VD& f_al, VD& f_be, VD& f_ps,
-			    VD& cn_al, VD& cn_be, VD& cn_ps, MAPID& r, int npts,
-			    int N, int kl, int ku, int nrhs, int ldab, vector<int>& ipiv, int ldb);
-
+				 VD& f_al, VD& f_be, VD& f_ps, VD& cn_al, VD& cn_be, VD& cn_ps, MAPID&r, int npts);
+void search_for_horizon(const VD& f_al, const VD& f_be, const VD& f_ps, MAPID& r, int lastpt, int i, double t)
+{
+  string horizon_response = "awesome";
+  if (outgoing_null_b(f_al, f_be, f_ps, r, lastpt) <= 0) {
+    cout << i << " at t = " << t << "\nAPPARENT HORIZON FOUND at r = " << r[RMAX] << "\nk = " << lastpt;
+    cout << "\nr_areal = " << r[RMAX]*sq(f_ps[lastpt]) << "\n\ncontinue?" << endl;
+    cin >> horizon_response;
+  }
+  int k = lastpt;
+  while (--k > 0) {
+    if (outgoing_null(f_al, f_be, f_ps, r, k) <= 0) {
+      cout << i << " at t = " << t << "\nAPPARENT HORIZON FOUND at r = " << r[k] << "\nk = " << k;
+      cout << "\nr_areal = " << r[k]*sq(f_ps[k]) << "\n\ncontinue?" << endl;
+      cin >> horizon_response;
+    }
+  }
+  if (outgoing_null_f(f_al, f_be, f_ps, r, 0) <= 0) {
+    cout << i << " at t = " << t << "\nAPPARENT HORIZON FOUND at r = " << r[RMIN] << "\nk = " << 0;
+    cout << "\nr_areal = " << r[RMIN]*sq(f_ps[0]) << "\n\ncontinue?" << endl;
+    cin >> horizon_response;
+  }
+  return;
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -222,6 +237,22 @@ void hyp_solve_ppx_slow(const VD& old_xi, const VD& old_pi, const VD& old_ps, VD
   cn_xi[lastpt] = 0.5 * (old_xi[lastpt] + f_xi[lastpt]);
   return;
 }
+
+void hyp_solve_PSI_ONLY(const VD& old_ps, VD& f_ps, const VD& cn_xi, const VD& cn_pi, const VD& cn_al,
+			const VD& cn_be, VD& cn_ps, MAPID& r, int lastpt)
+{
+  neumann0(f_ps);
+  cn_ps[0] = 0.5 * (old_ps[0] + f_ps[0]);
+  for (int k = 1; k < lastpt; ++k) {
+    // update f_ps & cn_ps
+    f_ps[k] = fda_hyp_ps(old_ps, cn_xi, cn_pi, cn_al, cn_be, cn_ps, r, k);
+    cn_ps[k] = 0.5 * (old_ps[k] + f_ps[k]);
+  }
+  // r = R BOUNDARY
+  f_ps[lastpt] = fdaR_hyp_ps(f_ps, r, lastpt);
+  cn_ps[lastpt] = 0.5 * (old_ps[lastpt] + f_ps[lastpt]);
+  return;
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // set res_vals to be residual = L[f] for rhs of jacobian.(-delta) = residual
@@ -327,7 +358,6 @@ dbl get_hyp_res_fast(VD& res_hyp, const VD& old_xi, const VD& old_pi, const VD& 
   return max(  *max_element(res_hyp.begin(), res_hyp.end()),
 	      -(*min_element(res_hyp.begin(), res_hyp.end()))  );
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -498,95 +528,58 @@ void get_resPs_ell(VD& res_ps, const VD& f_xi, const VD& f_pi, const VD& f_al, c
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline void apply_up_field(const VD& deltas, VD& field, int npts)
+inline void apply_up_field(const VD& deltas, VD& field, MAPID&r, int npts)
 {
-  for (int k = 0; k < npts; ++k) { field[k] -= deltas[k]; }
+  for (int k = 0; k < npts; ++k) { field[k] -= r[EUP_WEIGHT]*deltas[k]; }
   return;
 }
 
-inline void apply_up_ab(const VD& deltas, VD& f_al, VD& f_be, int npts)
+inline void apply_up_ab(const VD& deltas, VD& f_al, VD& f_be, MAPID&r, int npts)
 {
   for (int k = 0; k < npts; ++k) {
-    f_al[k] -= deltas[k];
-    f_be[k] -= deltas[npts + k];
+    f_al[k] -= r[EUP_WEIGHT]*deltas[k];
+    f_be[k] -= r[EUP_WEIGHT]*deltas[npts + k];
   }
   return;
 }
 
 
 inline void apply_up_ab_cn(const VD& deltas, const VD& old_al, const VD& old_be,
-			   VD& f_al, VD& f_be, VD& cn_al, VD& cn_be, int npts)
+			   VD& f_al, VD& f_be, VD& cn_al, VD& cn_be, MAPID&r, int npts)
 {
   for (int k = 0; k < npts; ++k) {
-    f_al[k] -= deltas[k];
-    f_be[k] -= deltas[npts + k];
+    f_al[k] -= r[EUP_WEIGHT]*deltas[k];
+    f_be[k] -= r[EUP_WEIGHT]*deltas[npts + k];
     cn_al[k] = 0.5 * (old_al[k] + f_al[k]);
     cn_be[k] = 0.5 * (old_be[k] + f_be[k]);
   }
   return;
 }
 
-inline void apply_up_abp_join(const VD& deltas, VD& f_al, VD& f_be, VD& f_ps, int npts)
+inline void apply_up_abp_join(const VD& deltas, VD& f_al, VD& f_be, VD& f_ps, MAPID&r, int npts)
 {
   int kps = 2*npts;
   for (int k = 0; k < npts; ++k) {
-    f_al[k] -= deltas[k];
-    f_be[k] -= deltas[npts + k];
-    f_ps[k] -= deltas[kps + k];
+    f_al[k] -= r[EUP_WEIGHT]*deltas[k];
+    f_be[k] -= r[EUP_WEIGHT]*deltas[npts + k];
+    f_ps[k] -= r[EUP_WEIGHT]*deltas[kps + k];
   }
   return;
 }
 
 inline void apply_up_abp_join_cn(const VD& deltas, const VD& old_al, const VD& old_be, const VD& old_ps,
-				 VD& f_al, VD& f_be, VD& f_ps, VD& cn_al, VD& cn_be, VD& cn_ps, int npts)
+				 VD& f_al, VD& f_be, VD& f_ps, VD& cn_al, VD& cn_be, VD& cn_ps, MAPID&r, int npts)
 {
   int kps = 2*npts;
   for (int k = 0; k < npts; ++k) {
-    f_al[k] -= deltas[k];
-    f_be[k] -= deltas[npts + k];
-    f_ps[k] -= deltas[kps + k];
+    f_al[k] -= r[EUP_WEIGHT]*deltas[k];
+    f_be[k] -= r[EUP_WEIGHT]*deltas[npts + k];
+    f_ps[k] -= r[EUP_WEIGHT]*deltas[kps + k];
     cn_al[k] = 0.5 * (old_al[k] + f_al[k]);
     cn_be[k] = 0.5 * (old_be[k] + f_be[k]);
     cn_ps[k] = 0.5 * (old_ps[k] + f_ps[k]);
   }
   return;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-// ***************************** ELL_SOLVE
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-int ell_solve_abpclean(VD& jac, VD& res_ell, const VD& old_al, const VD& old_be, const VD& old_ps,
-		       const VD& f_xi, const VD& f_pi, VD& f_al, VD& f_be, VD& f_ps,
-		       VD& cn_al, VD& cn_be, VD& cn_ps, MAPID& r, int npts,
-		       int N, int kl, int ku, int nrhs, int ldab, vector<int>& ipiv, int ldb)
-{
-  get_ell_res_abpclean_join(res_ell, f_xi, f_pi, f_al, f_be, f_ps, r, npts-1);
-  set_jacCMabpclean(jac, f_xi, f_pi, f_al, f_be, f_ps, r, npts, kl, ku, ldab);
-  int info = LAPACKE_dgbsv(LAPACK_COL_MAJOR, N, kl, ku, nrhs, &jac[0], ldab, &ipiv[0], &res_ell[0], ldb);
-  apply_up_abp_join_cn(res_ell, old_al, old_be, old_ps, f_al, f_be, f_ps, cn_al, cn_be, cn_ps, npts);
-  return info;
-}
-
-int ell_solve_abpclean_join(VD& jac, VD& res_ell, const VD& old_al, const VD& old_be, const VD& old_ps,
-			    const VD& f_xi, const VD& f_pi, VD& f_al, VD& f_be, VD& f_ps,
-			    VD& cn_al, VD& cn_be, VD& cn_ps, MAPID& r, int npts,
-			    int N, int kl, int ku, int nrhs, int ldab, vector<int>& ipiv, int ldb)
-{
-  get_ell_res_abpclean_join(res_ell, f_xi, f_pi, f_al, f_be, f_ps, r, npts-1);
-  set_jacCMabpclean(jac, f_xi, f_pi, f_al, f_be, f_ps, r, npts, kl, ku, ldab);
-  int info = LAPACKE_dgbsv(LAPACK_COL_MAJOR, N, kl, ku, nrhs, &jac[0], ldab, &ipiv[0], &res_ell[0], ldb);
-  apply_up_abp_join_cn(res_ell, old_al, old_be, old_ps, f_al, f_be, f_ps, cn_al, cn_be, cn_ps, npts);
-  return info;
-}
-
-int ell_solve_indep(VD& jac, VD& res_ell, const VD& old_al, const VD& old_be, const VD& old_ps,
-		    const VD& f_xi, const VD& f_pi, VD& f_al, VD& f_be, VD& f_ps,
-		    VD& cn_al, VD& cn_be, VD& cn_ps, MAPID& r, int npts,
-		    int N, int kl, int ku, int nrhs, int ldab, vector<int>& ipiv, int ldb)
-{
-  return 0;
 }
 
 #endif

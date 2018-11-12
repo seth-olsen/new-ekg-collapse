@@ -37,8 +37,8 @@ inline int jac_ind(int j, int k) { return (4 + j + 6*k); }
 inline dbl jac_aa(const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be, const VD& f_ps,
 		  MAPID& r, int k)
 {
-  return r[NEG2INDRSQ] - 8*M_PI*sq(f_pi[k]) +
-    2*pw4(f_ps[k])*sq(ddr_c(f_be,r,k) - f_be[k]*r[-k]) / (3*sq(f_al[k]));
+  return r[NEG2INDRSQ] - r[EIGHT_PI]*sq(f_pi[k]) +
+    r[TWO_THIRDS]*pw4(f_ps[k])*sq(ddr_c(f_be,r,k) - f_be[k]*r[-k]) / sq(f_al[k]);
 }
 
 inline dbl jac_aa_pm(const VD& f_al, const VD& f_be, const VD& f_ps, MAPID& r, int k, int p_m)
@@ -66,7 +66,7 @@ inline dbl jac_pp(const VD& f_xi, const VD& f_pi, const VD& f_al, const VD& f_be
 		  MAPID& r, int k)
 {
   return r[NEG2INDRSQ] + M_PI*(sq(f_xi[k]) + sq(f_pi[k])) +
-    5*pw4(f_ps[k])*sq(ddr_c(f_be,r,k) - f_be[k]*r[-k]) / (12*sq(f_al[k]));
+    r[FIVE_TWELFTHS]*pw4(f_ps[k])*sq(ddr_c(f_be,r,k) - f_be[k]*r[-k]) / sq(f_al[k]);
 }
 
 inline dbl jac_pp_pm(const VD& f_al, const VD& f_be, const VD& f_ps, MAPID& r, int k, int p_m)

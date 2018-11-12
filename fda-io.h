@@ -8,6 +8,7 @@
 #include <vector> // for everything
 #include <cmath> // for ICs
 #include <string> // for parameter input
+#include <sstream> // for printing doubles to full precision
 #include <map> // for parameter input
 #include <cstdlib> // for atoi() and atof()
 #include "bbhutil.h" // for output to .sdf
@@ -46,37 +47,78 @@ void param_set(map<str, str>& p_all, map<str, str *>& p_str,
   }
 }
 
-void param_print(str outfile, int lastpt, int save_pt, int nsteps,
-		 int save_step, dbl lam, dbl r2m, dbl rmin, dbl rmax,
-		 dbl dspn, dbl tol, int maxit, dbl ic_Dsq, dbl ic_r0,
-		 dbl ic_Amp, int check_step, dbl dr, dbl dt, bool psi_hyp,
-		 bool zero_pi, bool somm_cond, bool dspn_bound,
+void param_print(MAPID& r, str outfile, int lastpt, int save_pt, int nsteps,
+		 int save_step, int maxit, dbl ic_Dsq, dbl ic_r0, dbl ic_Amp,
+		 bool psi_hyp, bool zero_pi, bool somm_cond, bool dspn_bound,
 		 bool clean_hyp, bool clean_ell)
 {
+  ostringstream htol, etol;
+  htol << r[HYPTOL];
+  etol << r[ELLTOL];
+  str param_str = "\noutfile name = " + outfile + "\nlaspt (save_pt) = " +
+    to_string(lastpt) + " (" + to_string(save_pt) + ")\nnsteps (save_step) = " +
+    to_string(nsteps) + " (" + to_string(save_step) + ")\nrmin = " + to_string(r[RMIN])
+    + ";\trmax = " + to_string(r[RMAX]) + "\nlambda = " + to_string(r[LAMVAL]) +
+    "\ndt = " + to_string(r[DTVAL]) + "\ndissipation = " + to_string(r[DSPN_WEIGHT]) +
+    "\nell_up_weight = " + to_string(r[EUP_WEIGHT]) + "\nhyp_tol = " + htol.str() +
+    "\nell_tol = " + etol.str() + "\nmaxit = " + to_string(maxit) + "\nic_r0 = " +
+    to_string(ic_r0) + "\nic_Amp = " + to_string(ic_Amp) + "\nic_Dsq = " +
+    to_string(ic_Dsq) + "\ndr = " + to_string(r[DRVAL]);
+  cout << param_str << endl;
   str p_h = (psi_hyp) ? "true" : "false";
   str z_p = (zero_pi) ? "true" : "false";
   str s_c = (somm_cond) ? "true" : "false";
   str d_b = (dspn_bound) ? "true" : "false";
   str c_h = (clean_hyp) ? "true" : "false";
   str c_e = (clean_ell) ? "true" : "false";
-  str param_str = "\noutfile name = " + outfile + "\ngrid size = " +
-    to_string(lastpt) + " (" + to_string(save_pt) + "/write)\ntime steps = " +
-    to_string(nsteps) + " (" + to_string(save_step) + "/write)\nlambda = " +
-    to_string(lam) + "\nr2m = " + to_string(r2m) + "\nrmin = " + to_string(rmin)
-    + "\nrmax = " + to_string(rmax) + "\ndissipation = " + to_string(dspn) +
-    "\niterative tolerance = " + to_string(tol) + "\nmaximum iterations = " +
-    to_string(maxit) + "\nic_Dsq = " + to_string(ic_Dsq) + "\nic_r0 = " +
-    to_string(ic_r0) + "\nic_Amp = " + to_string(ic_Amp) + "\nmass check step = "
-    + to_string(check_step) + "\nmaximum evolution time = " + to_string(nsteps*dt)
-    + "\ndr = " + to_string(dr) + "\ndt = " + to_string(dt) +
-    "\noptions:\nhyperbolic psi evolution = " + p_h + "\nzero pi_0 = " + z_p +
+  param_str += "\noptions:\nhyperbolic psi evolution = " + p_h + "\nzero pi_0 = " + z_p +
     "\nsommerfeld bc = " + s_c + "\ndissipation at bound = " + d_b
     + "\nclean hyperbolic update functions = " + c_h
     + "\nclean elliptic update functions = " + c_e + "\n";
-  cout << param_str;
   ofstream specs;
   str specs_name = outfile + ".txt";
   specs.open(specs_name, ofstream::out);
+  specs << param_str;
+  specs.close();
+  return;
+}
+
+void record_horizon(MAPID& r, str outfile, int lastpt, int save_pt, int nsteps,
+		    int save_step, int maxit, dbl ic_Dsq, dbl ic_r0, dbl ic_Amp,
+		    bool psi_hyp, bool zero_pi, bool somm_cond, bool dspn_bound,
+		    bool clean_hyp, bool clean_ell, const VD& f_ps,
+		    int ind, int itn, int t_itn, dbl t)
+{
+  cout << "\nHORIZON FOUND\n" << endl;
+  ostringstream htol, etol;
+  htol << r[HYPTOL];
+  etol << r[ELLTOL];
+  str param_str = "\noutfile name = " + outfile + "\nlaspt (save_pt) = " +
+    to_string(lastpt) + " (" + to_string(save_pt) + ")\nnsteps (save_step) = " +
+    to_string(nsteps) + " (" + to_string(save_step) + ")\nrmin = " + to_string(r[RMIN])
+    + ";\trmax = " + to_string(r[RMAX]) + "\nlambda = " + to_string(r[LAMVAL]) +
+    "\ndt = " + to_string(r[DTVAL]) + "\ndissipation = " + to_string(r[DSPN_WEIGHT]) +
+    "\nell_up_weight = " + to_string(r[EUP_WEIGHT]) + "\nhyp_tol = " + htol.str() +
+    "\nell_tol = " + etol.str() + "\nmaxit = " + to_string(maxit) + "\nic_r0 = " +
+    to_string(ic_r0) + "\nic_Amp = " + to_string(ic_Amp) + "\nic_Dsq = " +
+    to_string(ic_Dsq) + "\ndr = " + to_string(r[DRVAL]);  
+  str p_h = (psi_hyp) ? "true" : "false";
+  str z_p = (zero_pi) ? "true" : "false";
+  str s_c = (somm_cond) ? "true" : "false";
+  str d_b = (dspn_bound) ? "true" : "false";
+  str c_h = (clean_hyp) ? "true" : "false";
+  str c_e = (clean_ell) ? "true" : "false";
+  param_str += "\noptions:\nhyperbolic psi evolution = " + p_h + "\nzero pi_0 = " + z_p +
+    "\nsommerfeld bc = " + s_c + "\ndissipation at bound = " + d_b
+    + "\nclean hyperbolic update functions = " + c_h
+    + "\nclean elliptic update functions = " + c_e + "\n";
+  ofstream specs;
+  str specs_name = "horizon-" + outfile + ".txt";
+  specs.open(specs_name, ofstream::out);
+  specs << "Horizon Found at:\nr[" << ind << "] = " << r[ind] << "  (r_areal = "
+	<< sq(f_ps[ind])*r[ind] << ")\nt[" << t_itn << "] = "
+	<< t << "  (itn " << itn << ")\nUsing:\ndr = " << r[DRVAL] << "\nic_Amp = " << ic_Amp
+	<< "\nic_Dsq = " << ic_Dsq << "\nic_r0 = " << ic_r0 << "\n\n\nFULL PARAMETER DATA:\n";
   specs << param_str;
   specs.close();
   return;

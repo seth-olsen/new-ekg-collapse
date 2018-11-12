@@ -83,10 +83,10 @@ int main(int argc, char **argv)
   // ******************** PARAMETERS **************************
   // **********************************************************
   // user-set parameters
-  str outfile = "long04";
+  str outfile = "ekg";
   int lastpt = 500; // grid size
   int save_pt = 1; // write only every (save_pt)th grid point
-  int nsteps = 1600; // time steps
+  int nsteps = 2000; // time steps
   int save_step = 4; // write only every (save_step)th time step
   dbl lam = 0.25; // dt/dr
   dbl r2m = 0.0;
@@ -94,14 +94,14 @@ int main(int argc, char **argv)
   dbl rmax = 50.0;
   dbl dspn = 0.5; // dissipation coefficient
   dbl tol = 0.000000001; // iterative method tolerance
-  dbl ell_tol = 0.01*tol;
+  dbl ell_tol = 0.001*tol;
   dbl ell_up_weight = 0.5;
   // for computing residual: 0 = inf-norm, 1 = 1-norm, 2 = 2-norm
   int resnorm_type = 0;
-  int maxit = 100; // max iterations for debugging
+  int maxit = 50; // max iterations for debugging
   dbl ic_Dsq = 25.0; // gaussian width
   dbl ic_r0 = 7.5; // gaussian center
-  dbl ic_Amp = 0.04; // gaussian amplitude
+  dbl ic_Amp = 0.004; // gaussian amplitude
   int check_step = 10; // for monitoring invariant mass
   // note: set bools in command line with integers 1=true or 0=false
   bool psi_hyp = true; // update psi with hyperbolic evolution eqn after IC?
@@ -110,20 +110,20 @@ int main(int argc, char **argv)
   bool dspn_bound = false; // dissipate boundary points?
   bool dspn_psi = false; // dissipate psi (only activated if psi_hyp=true)?
   bool dr3_up = false; // update pi with d/dr^3 scheme?
-  bool static_metric = false; // ignore scalar field's effect on metric?
+  //bool static_metric = false; // ignore scalar field's effect on metric?
   bool clean_hyp = false; // use clean hyperbolic update functions (slower)?
   bool clean_ell = false; // use clean hyperbolic update functions (slower)?
   bool write_res = false; // write residuals?
   bool write_ricci = true; // write ricci?
   bool write_itn = false; // write itn counts?
-  bool write_mtot = false; // write total mass?
-  bool write_maspect = true; // write mass aspect?
-  bool write_outnull = true; // write outgoing null expansion?
-  bool write_xp = true; // write xi and pi?
-  bool write_abp = true; // write metric fields (alpha, beta, psi)?
+  bool write_mtot = true; // write total mass?
+  bool write_maspect = false; // write mass aspect?
+  bool write_outnull = false; // write outgoing null expansion?
+  bool write_xp = false; // write xi and pi?
+  bool write_abp = false; // write metric fields (alpha, beta, psi)?
   bool write_ires_xp = false; // write ires for xi and pi?
   bool write_ires_abp = false; // write ires for metric variables?
-  bool horizon_search = true; // search for apparent horizon after each step?
+  bool horizon_search = false; // search for apparent horizon after each step?
   // variable to hold constant across resolutions
   str hold_const = "lambda"; // "lambda", "dt", or "dr"
   int nresn = 3; // 1, 2, or 3
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
   map<str, dbl *> p_dbl {{"-lam",&lam}, {"-r2m",&r2m}, {"-rmin",&rmin}, {"-rmax",&rmax},
       {"-dspn",&dspn}, {"-tol",&tol}, {"-ell_tol",&ell_tol}, {"-ell_up_weight",&ell_up_weight},
       {"-ic_Dsq",&ic_Dsq}, {"-ic_r0",&ic_r0}, {"-ic_Amp",&ic_Amp}};
-  map<str, bool *> p_bool { {"-psi_hyp",&psi_hyp}, {"-zero_pi",&zero_pi}, {"-static_metric",&static_metric},
+  map<str, bool *> p_bool { {"-psi_hyp",&psi_hyp}, {"-zero_pi",&zero_pi},
       {"-somm_cond",&somm_cond}, {"-dspn_bound",&dspn_bound}, {"-dr3_up",&dr3_up}, {"-dspn_psi",&dspn_psi},
       {"-write_res",&write_res},{"-write_ricci",&write_ricci}, {"-write_itn",&write_itn},
       {"-write_mtot",&write_mtot},{"-write_maspect",&write_maspect}, {"-write_outnull",&write_outnull},
@@ -177,9 +177,10 @@ int main(int argc, char **argv)
   //else if (clean_hyp && clean_ell) { ekg_solver = solve_E_slow; }
 
   // HERE psi_hyp = True means do NOT dissipate the point next to r = 0
+  /*
   void (*apply_dissipation)(const VD&, const VD&, VD&, VD&, int, dbl);
   if (dspn_bound) { apply_dissipation = dissipationB_xp; }
-  else { apply_dissipation = dissipationNB_xp; }
+  else { apply_dissipation = dissipationNB_xp; }*/
 
   int n_ell = 3;
   if (psi_hyp) { n_ell = 2; }
@@ -221,11 +222,13 @@ int main(int argc, char **argv)
   int num_wr = wr_ptrs.size();
 
   // SAME FOR WRITE RESIDUAL WRITING
+  /*
   vector<dbl *> wr_res_ptrs({&wr_xi[0], &wr_pi[0],
 	&wr_al[0], &wr_be[0], &wr_ps[0]});
   WR_RES_FN wr_res_fn = get_wr_res_fn(wr_res_ptrs, write_res,
 				      write_xp, write_abp);
   int num_wr_res = wr_res_ptrs.size();
+  */
 // **********************************************************
 //                       WRITE END
 // **********************************************************
@@ -291,10 +294,10 @@ int main(int argc, char **argv)
     vector<lapack_int> ipiv(N);
     VD res_ell(ldb, 0);
     VD jac_zero(ldab*N, 0);
-
+    /*
     MAPII z { {MAX_ITN,maxit}, {RESN_FACTOR,factor} };
     set_zmap(z, lastwr, lastpt, save_pt, nsteps, save_step, n_ell, kl, ku);
-    
+    */
 // **********************************************************
 //                      WRITE START
 // **********************************************************
@@ -307,16 +310,13 @@ int main(int argc, char **argv)
     vector<char *> wr_names(num_wr);
     for (int k = 0; k < num_wr; ++k) { wr_names[k] = &filenames[k][0]; }
     // FILE NAMES for RESIDUALS
+    /*
     vector<str> resfilenames = get_resfilenames(outfile, write_res, write_xp, write_abp);
     vector<char *> wr_res_names(num_wr_res);
     for (int k = 0; k < num_wr_res; ++k) { wr_res_names[k] = &resfilenames[k][0]; }
+    */
     // FILE NAMES for ITN, MTOT
-    str itn_file = "itns-" + outfile + ".csv";
-    ofstream ofs_itn;
-    if (write_itn) {
-      ofs_itn.open(itn_file, ofstream::out);
-      ofs_itn << "step,time,hyp_itn,ell_itn" << endl;
-    }
+    
     str mass_file = "mass-" + outfile + ".csv";
     ofstream ofs_mass;
     if (write_mtot) {
@@ -345,8 +345,6 @@ int main(int argc, char **argv)
     VD older_xi(vlen, 0), older_pi(vlen, 0);
     vlen = ((write_ires_abp) ? npts : 1);
     VD older_ps(vlen, 1);
-    vlen = ((write_res) ? 5*npts : 1);
-    VD residuals(vlen, 0);
 
     time_t start_time = time(NULL); // time for rough performance measure
     
@@ -368,32 +366,27 @@ int main(int argc, char **argv)
     neumann0(f_pi);
 
     // SOLVE ELLIPTIC EQUATIONS FOR t=0  
-    if (!static_metric) {
-      itn = solve_t0_slow(f_xi, f_pi, f_al, f_be, f_ps, r, lastpt, 10*maxit);
-      if (itn < 0) {
-	if (itn > -npts) {
-	  record_horizon(r, outfile, lastpt, save_pt, nsteps, save_step, maxit,
-			 ic_Dsq, ic_r0, ic_Amp, psi_hyp, zero_pi, somm_cond,
-			 dspn_bound, clean_hyp, clean_ell, f_ps, -itn, 0, 0, 0);
-	}
-	else if (itn == -npts) {
-	  record_horizon(r, outfile, lastpt, save_pt, nsteps, save_step, maxit,
-			 ic_Dsq, ic_r0, ic_Amp, psi_hyp, zero_pi, somm_cond,
-			 dspn_bound, clean_hyp, clean_ell, f_ps, 0, 0, 0, 0);
-	}
-	else { cout << "\nUNDETERMINED ERROR IN T = 0 ELLIPTIC CONSTRAINTS" << endl; }
-	return itn;
+
+    itn = solve_t0_slow(f_xi, f_pi, f_al, f_be, f_ps, r, lastpt, 100*maxit);
+    if (itn < 0) {
+      if (itn > -npts) {
+	record_horizon(r, outfile, lastpt, save_pt, nsteps, save_step, maxit,
+		       ic_Dsq, ic_r0, ic_Amp, psi_hyp, zero_pi, somm_cond,
+		       dspn_bound, clean_hyp, clean_ell, f_ps, -itn, 0, 0, 0);
       }
+      else if (itn == -npts) {
+	record_horizon(r, outfile, lastpt, save_pt, nsteps, save_step, maxit,
+		       ic_Dsq, ic_r0, ic_Amp, psi_hyp, zero_pi, somm_cond,
+		       dspn_bound, clean_hyp, clean_ell, f_ps, 0, 0, 0, 0);
+      }
+      else { cout << "\nUNDETERMINED ERROR IN T = 0 ELLIPTIC CONSTRAINTS" << endl; }
+      return itn;
     }
     
     // set old_f = f = cn_f for writing initial step
     old_xi = f_xi; old_pi = f_pi; old_al = f_al; old_be = f_be; old_ps = f_ps;
     cn_xi = f_xi; cn_pi = f_pi; cn_al = f_al; cn_be = f_be; cn_ps = f_ps;
-    if (write_ires_xp) {
-      older_xi = old_xi;
-      older_pi = old_pi;
-    }
-    if (write_ires_abp) { older_ps = old_ps; }
+
 // **********************************************************
 // ******************* TIME STEPPING ************************
 // *******************   & WRITING   ************************
@@ -407,26 +400,19 @@ int main(int argc, char **argv)
 // **********************************************************
       if (i % save_step == 0) {
 	// get coarsened arrays
-	wr_fn(older_xi, older_pi, older_ps, old_xi, old_pi, old_al, old_be, old_ps,
+	/*wr_fn(older_xi, older_pi, older_ps, old_xi, old_pi, old_al, old_be, old_ps,
 	      f_xi, f_pi, f_al, f_be, f_ps, maspect, ires_xi,
 	      ires_pi, ires_al, ires_be, ires_ps, wr_xi, wr_pi, wr_al, wr_be, wr_ps,
-	      r, save_pt, lastwr);
-        if (write_ricci) {
-	  /*
-	  if (psi_hyp) {
-	    get_resPs_ell(ricci, f_xi, f_pi, f_al, f_be, f_ps, r, lastwr, save_pt);
-	  }
-	  else {
-	    get_resPs_hyp(ricci, old_ps, f_ps, cn_xi, cn_pi, cn_al, cn_be, cn_ps, r, lastwr, save_pt);
-	    }*/
-	  ricci[0] = sRicci(f_xi, f_pi, f_ps, 0);
+	      r, save_pt, lastwr);*/
+        //if (write_ricci) {
+	  ricci[0] = r[EIGHT_PI]*sRicci(f_xi, f_pi, f_ps, 0);
 	  int s = save_pt;
 	  for (int k = 1; k < lastwr; ++k) {
-	    ricci[k] = sRicci(f_xi, f_pi, f_ps, s);
+	    ricci[k] = r[EIGHT_PI]*sRicci(f_xi, f_pi, f_ps, s);
 	    s += save_pt;
 	  }
-	  ricci[lastwr] = sRicci(f_xi, f_pi, f_ps, lastpt);
-	}
+	  ricci[lastwr] = r[EIGHT_PI]*sRicci(f_xi, f_pi, f_ps, lastpt);
+	/*}
 	if (write_outnull) {
 	  outnull[0] = outgoing_null_f(f_al, f_be, f_ps, r, 0);
 	  int s = save_pt;
@@ -435,20 +421,20 @@ int main(int argc, char **argv)
 	    s += save_pt;
 	  }
 	  outnull[lastwr] = outgoing_null_b(f_al, f_be, f_ps, r, lastpt);
-	}
+	  }*/
 	  
 	// write field, maspect, ires outfiles
 	wr_step(num_wr, wr_names, t, bbh_shape, bbh_rank, coords, wr_ptrs);
 	// check total mass
-	if (write_mtot) {
+	//if (write_mtot) {
 	  if (i % (check_step*save_step) == 0) { ofs_mass << i <<","<< t <<","<<
 	      mass_aspectR(f_al, f_be, f_ps, r, lastwr) << endl; }
-	}
+	  //}
 	// write residuals
-	if (write_res) {
+	/*if (write_res) {
 	  wr_res_fn(residuals, wr_xi, wr_pi, wr_al, wr_be, wr_ps, save_pt, wr_shape);
 	  wr_step(num_wr_res, wr_res_names, t, bbh_shape, bbh_rank, coords, wr_res_ptrs);
-	}
+	  }*/
       }
 // **********************************************************
 //                       WRITE END
@@ -460,11 +446,6 @@ int main(int argc, char **argv)
 // ******************************************************************
 // ******************************************************************
       // save time n-1 for ires with different d/dt scheme
-      if (write_ires_xp) {
-	older_xi = old_xi;
-	older_pi = old_pi;
-      }
-      if (write_ires_abp) { older_ps = old_ps; }
 
       itn = (*ekg_solver)(old_xi, old_pi, old_al, old_be, old_ps, f_xi, f_pi, f_al, f_be, f_ps,
 			  cn_xi, cn_pi, cn_al, cn_be, cn_ps, res_hyp, res_ell, jac_zero,
@@ -475,11 +456,11 @@ int main(int argc, char **argv)
 // *****************************************************************
 
       // record itn count of this sweep
-      if (write_itn) { ofs_itn << i <<","<< t <<","<< itn << endl; }
+      //if (write_itn) { ofs_itn << i <<","<< t <<","<< itn << endl; }
     // **************************************************************************
     // *********************** kreiss-oliger DISSIPATION ************************
     // **************************************************************************
-      (*apply_dissipation)(old_xi, old_pi, f_xi, f_pi, lastpt-1, dspn);
+      dissipationNB_xp(old_xi, old_pi, f_xi, f_pi, lastpt-1, dspn);
 
     // **************************************************************************
     // ************************ APPARENT HORIZON SEARCH *************************
@@ -518,38 +499,49 @@ int main(int argc, char **argv)
     // ******************** DONE TIME STEPPING *********************
     // WRITE final time step
     if (nsteps % save_step == 0) {
-      wr_fn(older_xi, older_pi, older_ps, old_xi, old_pi, old_al, old_be, old_ps,
-	    f_xi, f_pi, f_al, f_be, f_ps, maspect, ires_xi,
-	    ires_pi, ires_al, ires_be, ires_ps, wr_xi, wr_pi, wr_al, wr_be, wr_ps,
-	    r, save_pt, lastwr);
-      if (write_ricci) {
-	ricci[0] = sRicci(f_xi, f_pi, f_ps, 0);
-	int s = save_pt;
-	for (int k = 1; k < lastwr; ++k) {
-	  ricci[k] = sRicci(f_xi, f_pi, f_ps, s);
-	  s += save_pt;
+      // get coarsened arrays
+	wr_fn(older_xi, older_pi, older_ps, old_xi, old_pi, old_al, old_be, old_ps,
+	      f_xi, f_pi, f_al, f_be, f_ps, maspect, ires_xi,
+	      ires_pi, ires_al, ires_be, ires_ps, wr_xi, wr_pi, wr_al, wr_be, wr_ps,
+	      r, save_pt, lastwr);
+        //if (write_ricci) {
+	  ricci[0] = r[EIGHT_PI]*sRicci(f_xi, f_pi, f_ps, 0);
+	  int s = save_pt;
+	  for (int k = 1; k < lastwr; ++k) {
+	    ricci[k] = r[EIGHT_PI]*sRicci(f_xi, f_pi, f_ps, s);
+	    s += save_pt;
+	  }
+	  ricci[lastwr] = r[EIGHT_PI]*sRicci(f_xi, f_pi, f_ps, lastpt);
+	/*}
+	if (write_outnull) {
+	  outnull[0] = outgoing_null_f(f_al, f_be, f_ps, r, 0);
+	  int s = save_pt;
+	  for (int k = 1; k < lastwr; ++k) {
+	    outnull[k] = outgoing_null(f_al, f_be, f_ps, r, s);
+	    s += save_pt;
+	  }
+	  outnull[lastwr] = outgoing_null_b(f_al, f_be, f_ps, r, lastpt);
+	  }*/
+	  
+	// write field, maspect, ires outfiles
+	wr_step(num_wr, wr_names, nsteps*dt, bbh_shape, bbh_rank, coords, wr_ptrs);
+	// check total mass
+	//if (write_mtot) {
+	if (nsteps % (check_step*save_step) == 0) {
+	  ofs_mass << nsteps <<","<< nsteps*dt <<","<< mass_aspectR(f_al, f_be, f_ps, r, lastwr) << endl;
 	}
-	ricci[lastwr] = sRicci(f_xi, f_pi, f_ps, lastpt);
-      }
-      if (write_outnull) {
-	outnull[0] = outgoing_null_f(f_al, f_be, f_ps, r, 0);
-	int s = save_pt;
-	for (int k = 1; k < lastwr; ++k) {
-	  outnull[k] = outgoing_null(f_al, f_be, f_ps, r, s);
-	  s += save_pt;
-	}
-	outnull[lastwr] = outgoing_null_b(f_al, f_be, f_ps, r, lastpt);
-      }
-      wr_step(num_wr, wr_names, t, bbh_shape, bbh_rank, coords, wr_ptrs);
-      if (write_res) {
-	wr_res_fn(residuals, wr_xi, wr_pi, wr_al, wr_be, wr_ps, save_pt, wr_shape);
-	wr_step(num_wr_res, wr_res_names, t, bbh_shape, bbh_rank, coords, wr_res_ptrs);
-      }
+	  //}
+	// write residuals
+	/*if (write_res) {
+	  wr_res_fn(residuals, wr_xi, wr_pi, wr_al, wr_be, wr_ps, save_pt, wr_shape);
+	  wr_step(num_wr_res, wr_res_names, t, bbh_shape, bbh_rank, coords, wr_res_ptrs);
+	  }*/
     }
     // CLOSE outfiles
     gft_close_all();
-    if (write_itn) { ofs_itn.close(); }
-    if (write_mtot) { ofs_mass.close(); }
+    //if (write_itn) { ofs_itn.close(); }
+    //if (write_mtot) {
+    ofs_mass.close(); //}
     // PRINT resolution runtime and number of steps reaching maxit
     cout << outfile+" written in " << difftime(time(NULL),start_time) << " seconds" << endl;
   }
