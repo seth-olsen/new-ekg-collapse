@@ -232,7 +232,7 @@ def ricci_max_crit_plot(fnames, amps, pcrit, resn=8, dsq=25, logplot=False, mark
     plt.title(titletext)
     return plot_data
 
-def get_ricci_max_crit_data(fnames, amps, pcrit, emax=[0,0,0], resn=8, nparr=False):
+def get_ricci_max_crit_data(fnames, amps, pcrit, emax=[0.02,0.8,3.1], resn=8, nparr=False):
     max_lob = []
     max_upb = []
     amp_lob = []
@@ -243,14 +243,14 @@ def get_ricci_max_crit_data(fnames, amps, pcrit, emax=[0,0,0], resn=8, nparr=Fal
         amp = amps[k]
         # ***** ADJUST THESE*********************************************
         amp_data.append(pcrit - amp)
-        amp_lob.append(0.012285 - amp)
-        amp_upb.append(0.012291 - amp)
+        amp_lob.append(pcrit - 0.0000005 - amp)
+        amp_upb.append(pcrit + 0.0000005 - amp)
         max_ric = ricci_max(fnames[k],resn)
         max_data.append(max_ric)
         if (amp < 0.0122):
             max_lob.append(max_ric - emax[0])
             max_upb.append(max_ric + emax[0])
-        elif (amp < 0.01227):
+        elif (amp < 0.01225):
             max_lob.append(max_ric - emax[1])
             max_upb.append(max_ric + emax[1])
         else:
@@ -261,17 +261,33 @@ def get_ricci_max_crit_data(fnames, amps, pcrit, emax=[0,0,0], resn=8, nparr=Fal
     else:
         return [amp_data, amp_lob, amp_upb, max_data, max_lob, max_upb]
 
-def get_ricci_max_log_crit_data(fnames, amps, pcrit, emax=[0,0,0], resn=8):
+def get_ricci_max_log_crit_data(fnames, amps, pcrit, emax=[0.02,0.8,3.1], resn=8):
     return np.log(get_ricci_max_crit_data(fnames,amps,pcrit,emax,resn,True))
 
-def ricci_max_errplot(logplot, fnames, amps, emax=[0,0,0], pcrit=0.0122885, resn=8, dsq=25, marker='g^'):
+def fit_label(params, pcrit):
+    s = "$log(R_{max}) = C - 2 \gamma \,log(A_{crit} - A)$"
+    s += "\n  $A_{crit} = " + str(pcrit)[:9] + " \pm 0.000005$"
+    gam = params[0][0]
+    c = params[0][1]
+    err_gam = sqrt(params[1][0][0])
+    err_c = sqrt(params[1][1][1])
+    s += "\n  $\gamma = " + str(gam)[:8] + " \pm " + str(2*err_gam)[:8] + "$"
+    s += "\n  $C = " + str(c)[:8] + " \pm " + str(2*err_c)[:8] + "$"
+    return s
+
+def ricci_max_errplot(fnames, amps, pcrit, emax=[0.02,0.8,3.1], resn=8, dsq=25, dmarker='bo', logplot=True):
     plot_data = None
+    fit_p = None
     if (logplot):
-        plot_data = get_ricci_max_log_crit_data(fnames, amps, emax, pcrit, resn)
+        plot_data = get_ricci_max_log_crit_data(fnames, amps, pcrit, emax, resn)
+        xdata = np.array(plot_data[0])
+        ydata = np.array(plot_data[3])
+        popt, pcov = curve_fit(log_fit_fn, xdata, ydata, p0=[0.37, -3])
+        fit_p = [popt, pcov]
     else:
-        plot_data = get_ricci_max_crit_data(fnames, amps, emax, pcrit, resn)
-    x = plot_data[0]
-    y = plot_data[3]
+        plot_data = get_ricci_max_crit_data(fnames, amps, pcrit, emax, resn)
+    x = np.array(plot_data[0])
+    y = np.array(plot_data[3])
     xerrlo = []
     xerrup = []
     yerrlo = []
@@ -281,16 +297,19 @@ def ricci_max_errplot(logplot, fnames, amps, emax=[0,0,0], pcrit=0.0122885, resn
         xerrup.append(plot_data[2][k] - x[k])
         yerrlo.append(y[k] - plot_data[4][k])
         yerrup.append(plot_data[5][k] - y[k])
-    plt.errorbar(x, y, marker, xerr=[xerrlo, xerrup], yerr=[yerrlo, yerrup], lw=1, elinewidth=2, capsize=2)
+    plt.errorbar(x, y, yerr=[yerrlo, yerrup], xerr=[xerrlo, xerrup], fmt=dmarker, markersize=2, lw=0.5, elinewidth=1, capsize=1, label="data")
+    plt.legend()
     if (logplot):
+        plt.plot(x, log_fit_fn(x, fit_p[0][0], fit_p[0][1]), 'r', label=fit_label(fit_p, pcrit))
+        plt.legend()
         plt.xlabel('Log(Critical Amplitude - Initial Amplitude)')
         plt.ylabel('Log(Ricci Scalar Maximum Value)')
     else:
         plt.xlabel('Critical Amplitude - Initial Amplitude')
         plt.ylabel('Ricci Scalar Maximum Value')
-    titletext = 'max_Ricci vs. ic_Amplitude for ic_Dsq = ' + str(dsq) + ', resn = ' + str(resn)
+    titletext = 'Max Ricci Scalar vs. Initial Amplitude for $\Delta^{2}$ = ' + str(dsq) + ', dr = ' + str(0.1 / float(resn)) + ' ($r_{max} = 50.0$)'
     plt.title(titletext)
-    return
+    return plot_data, fit_p
 
 def pwr_fit_fn(xdata, gam, c):
     return c * np.power(xdata, -2*gam)
@@ -304,7 +323,7 @@ def pcrit_fit_fn(xdata, pcrit, gam, c):
 def pcrit_log_fit_fn(xdata, pcrit, gam, c):
     return c - 2*gam*np.log(pcrit - xdata)
 
-def fit_ricci_data(fnames, amps, pcrit=0.012288, emax=[0,0,0], resn=8, pwr_fit=False, pcrit_fit=False, guess=None):
+def fit_ricci_data(fnames, amps, pcrit, emax=[0.02,0.8,3.1], resn=8, pwr_fit=False, pcrit_fit=False, guess=None):
     popt = None
     pcov = None
     if (pcrit_fit):
@@ -331,6 +350,18 @@ def fit_ricci_data(fnames, amps, pcrit=0.012288, emax=[0,0,0], resn=8, pwr_fit=F
             popt, pcov = curve_fit(log_fit_fn, xdata, ydata, p0=guess)
     return [popt, pcov]
 
+def get_titletext(pcrit, offstart, offend):
+    return "pcrit = " + str(pcrit) + "\nremoved: smallest " + str(offstart) + " & largest " + str(offend)
+
+def logplot_vs_fit(titletext, fnames, amps, pcrit, emax=[0.02,0.8,3.1], resn=8, guess=[0.37, -3]):
+    plot_data = get_ricci_max_log_crit_data(fnames, amps, pcrit, emax, resn)
+    x = plot_data[0]
+    y = plot_data[3]
+    popt, pcov = curve_fit(log_fit_fn, x, y, p0=guess)
+    plt.plot(x, y, 'bo', markersize=2)
+    plt.plot(x, log_fit_fn(x, popt[0], popt[1]), 'r')
+    plt.title(titletext)
+    return 0
 
 def make_amp_file_name(digits):
     dstr = str(digits)
@@ -356,104 +387,199 @@ def generate_amp_file_names(ranges=[[200,225,2], [225,227,1], [2255,2270,10], \
             amplist.append(entry[1])
     return [namelist, amplist]
 
-
-all_names = ["_0100", "_0102", "_0104", "_0106", "_0108", "_0110", \
-             "_0111", "_0112", "_0113", "_0114", "_0115", \
-             "_0116", "_0117", "_0118", "_0119","_01200", \
-             "_01202", "_01204", "_01206", "_01208", "_01210", \
-             "_01212", "_01214", "_01216", "_01218", "_01220", \
-             "_01222", "_01224", "_01225", "_012255", "_01226", \
-             "_012265", "_012268", "_012270", "_012272", "_012274", "_012275", \
-             "_012276", "_012277", "_0122775", "_012278", "_0122785", "_012279", \
-             "_0122795", "_012280", "_0122805", "_012281", "_0122815", "_012282", \
-             "_0122825", "_012283", "_0122835", "_012284", "_0122845", "_012285", \
-             "_0122855", "_012286", "_0122865", "_012287", "_0122875", "_012288"]
-
-all_amps = [0.0100, 0.0102, 0.0104, 0.0106, 0.0108, 0.0110, \
-            0.0111, 0.0112, 0.0113, 0.0114, 0.0115, \
-            0.0116, 0.0117, 0.0118, 0.0119, 0.01200, \
-            0.01202, 0.01204, 0.01206, 0.01208, 0.01210, \
-            0.01212, 0.01214, 0.01216, 0.01218, 0.01220, \
-            0.01222, 0.01224, 0.01225, 0.012255, 0.01226, \
-            0.012265, 0.012268, 0.012270, 0.012272, 0.012274, 0.012275, \
-            0.012276, 0.012277, 0.0122775, 0.012278, 0.0122785, \
-            0.012279, 0.0122795, 0.012280, 0.0122805, \
-            0.012281, 0.0122815, 0.012282, 0.0122825, 0.012283, 0.0122835, \
-            0.012284, 0.0122845, 0.012285, 0.0122855, \
-            0.012286, 0.0122865, 0.012287, 0.0122875, 0.012288]
-
 nms = ["_01224", "_01225", "_012255", "_01226", \
        "_012265", "_012268", "_012270", "_012272", "_012274", "_012275", \
-       "_012276", "_012277", "_0122775", "_012278", "_0122785", "_012279", \
-       "_0122795", "_012280", "_0122805", "_012281", "_0122815", "_012282", \
-       "_0122825", "_012283", "_0122835", "_012284", "_0122845", "_012285", \
-       "_0122855", "_012286"]
+       "_012276", "_012277", "_0122775", "_012278", "_0122785"]
 
 ams = [0.01224, 0.01225, 0.012255, 0.01226, \
        0.012265, 0.012268, 0.012270, 0.012272, 0.012274, 0.012275, \
-       0.012276, 0.012277, 0.0122775, 0.012278, 0.0122785, \
-       0.012279, 0.0122795, 0.012280, 0.0122805, \
-       0.012281, 0.0122815, 0.012282, 0.0122825, 0.012283, 0.0122835, \
-       0.012284, 0.0122845, 0.012285, 0.0122855, 0.012286]
+       0.012276, 0.012277, 0.0122775, 0.012278, 0.0122785]
 
-sm_nms = ["_012277", "_0122775", "_012278", "_0122785", \
-          "_012279", "_0122795", "_012280", "_0122805", "_012281", "_0122815", \
-          "_012282", "_0122825", "_012283"]
+append_amp_file_names(nms, ams, 22790, 22826, dstep=1)
 
-sm_ams = [0.012277, 0.0122775, 0.012278, 0.0122785, \
-          0.012279, 0.0122795, 0.012280, 0.0122805, 0.012281, 0.0122815, \
-          0.012282, 0.0122825, 0.012283]
+nms += ["_012283", "_0122835", "_012284", "_0122845", \
+        "_012285", "_0122855", "_012286"]
+       
+ams += [0.012283, 0.0122835, 0.012284, 0.0122845, 0.012285, 0.0122855, 0.012286]
 
-pcrit_arr = 0.0000001 * np.array(range(122835, 122935, 5))
 iend = len(nms)
 if (iend != len(ams)):
     print("ERROR: names and amps differ")
 
-gamma_results = []
-best_results = []
 
-for i in range(18):
-    print("\n" + str(i) + "\n") 
-    for j in range(10):
-        print("******** off front = " + str(i) + "********")
-        print("******** off back = " + str(j) + "********\n")
+n83_84 = nms[11:(iend - 14)]
+a83_84 = ams[11:(iend - 14)]
+# *******************************
+n82_83 = nms[11:(iend - 15)]
+a82_83 = ams[11:(iend - 15)]
+
+n3_4 = nms[12:(iend - 16)]
+a3_4 = ams[12:(iend - 16)]
+# *******************************
+n2_3 = nms[12:(iend - 17)]
+a2_3 = ams[12:(iend - 17)]
+
+n3_4t = nms[13:(iend - 18)]
+a3_4t = ams[13:(iend - 18)]
+# *********************************
+n2_3t = nms[13:(iend - 19)]
+a2_3t = ams[13:(iend - 19)]
+
+
+
+#plt.figure()
+#logd90, p90 = ricci_max_errplot(n90, a90)
+#plt.figure()
+#logd90t, p90t = ricci_max_errplot(n90t, a90t)
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012283, 11, 14), n83_84, a83_84, 0.012283)
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012284, 11, 14), n83_84, a83_84, 0.012284)
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012283, 12, 16), n3_4, a3_4, 0.012283)
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012284, 12, 16), n3_4, a3_4, 0.012284)
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012283, 13, 18), n3_4t, a3_4t, 0.012283)
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012284, 13, 18), n3_4t, a3_4t, 0.012284)
+
+
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012282, 11, 15), n82_83, a82_83, 0.012282)
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012283, 11, 15), n82_83, a82_83, 0.012283)
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012282, 12, 17), n2_3, a2_3, 0.012282)
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012283, 12, 17), n2_3, a2_3, 0.012283)
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012282, 13, 19), n2_3t, a2_3t, 0.012282)
+# plt.figure()
+# logplot_vs_fit(get_titletext(0.012283, 13, 19), n2_3t, a2_3t, 0.012283)
+
+
+#plt.show(block=False)
+
+
+pcrit_arr = 0.0000001 * np.array(range(122880, 122901, 1))
+more_results = []
+more_tight = []
+for i in range(25):
+    #print("\n" + str(i) + "\n") 
+    for j in range(25):
+    #    print("******** off front = " + str(i) + "********")
+    #    print("******** off back = " + str(j) + "********\n")
         for pcr in pcrit_arr:
             if (pcr > max(ams[i:(iend - j)])):
                 params = fit_ricci_data(nms[i:(iend - j)], ams[i:(iend - j)], \
                                         pcr, emax=[0,0,0], resn=8, pwr_fit=False, \
                                         pcrit_fit=False, guess=[0.37, -3])
                 gam = params[0][0]
-                if ((gam < 0.375) and (gam > 0.365)):
-                    print("gamma_fit = " + str(gam))
-                    print("FOR pcrit = " + str(pcr) + "\n")
-                    gamma_results.append([gam, pcr, i, j, params])
-                    if (j < 5):
-                        best_results.append([gam, pcr, i, j, params])
+                if ((gam < 0.38) and (gam > 0.36)):
+    #                print("gamma_fit = " + str(gam))
+    #                print("FOR pcrit = " + str(pcr) + "\n")
+                    more_results.append([gam, pcr, i, j, params])
+                    if ((i > 10) and (j > 5)):
+                        more_tight.append([gam, pcr, i, j, params])
 
 
-#for i in range(8):
-#    print("\n" + str(i) + "\n") 
-#    for j in range(4):
-#        print("******** off front = " + str(i) + "********")
-#        print("******** off back = " + str(j) + "********\n")
-#        for pcr in pcrit_arr:
-#            params = fit_ricci_data(sm_nms[i:(iend - j)], sm_ams[i:(iend - j)], \
-#                                    pcr, emax=[0,0,0], resn=8, pwr_fit=False, \
-#                                    pcrit_fit=False, guess=[0.37, -3])
-#            gam = params[0][0]
-#            gamma_results.append([gam, pcr, i, j])
-#            if ((gam < 0.42) and (gam > 0.32)):
-#                print("gamma_fit = " + str(gam))
-#                print("FOR pcrit = " + str(pcr) + "\n")
 
-#for i in range(10):
-    #print(i)
-    #all_names.pop(len(all_names)-1)
-    #all_amps.pop(len(all_amps)-1)
-    #print("fit pcrit:")
-    #print(fit_ricci_data(all_names,all_amps,pcrit=0.012288, emax=[0,0,0], resn=8, pwr_fit=False, pcrit_fit=True, guess=[0.012288, 0.37, 1]))
-    #print("given pcrit:")
-#print(fit_ricci_data(all_names, all_amps, pcrit=0.012288, emax=[0,0,0], resn=8, pwr_fit=False, pcrit_fit=False, guess=[0.37, 1]))
+# n89 = nms[5:]
+# a89 = ams[5:]
+
+# n895 = nms[6:]
+# a895 = ams[6:]
+
+# n915 = nms[11:]
+# a915 = ams[11:]
+
+# n90 = nms[18:(iend - 8)]
+# a90 = ams[18:(iend - 8)]
+
+# n90t = n90[9:(iend - 9)]
+# a90t = a90[9:(iend - 9)]
+
+# n88_89 = nms[11:(iend - 9)]
+# a88_89 = ams[11:(iend - 9)]
+
+# n87_88 = nms[11:(iend - 10)]
+# a87_88 = ams[11:(iend - 10)]
+
+# n86_87 = nms[11:(iend - 11)]
+# a86_87 = ams[11:(iend - 11)]
+
+# n85_86 = nms[11:(iend - 12)]
+# a85_86 = ams[11:(iend - 12)]
+
+# n84_85 = nms[11:(iend - 13)]
+# a84_85 = ams[11:(iend - 13)]
+
+# n83_84 = nms[11:(iend - 14)]
+# a83_84 = ams[11:(iend - 14)]
+# # *******************************
+# n82_83 = nms[11:(iend - 15)]
+# a82_83 = ams[11:(iend - 15)]
+
+# n81_82 = nms[11:(iend - 16)]
+# a81_82 = ams[11:(iend - 16)]
+
+# n8_9 = nms[12:(iend - 11)]
+# a8_9 = ams[12:(iend - 11)]
+
+# n7_8 = nms[12:(iend - 12)]
+# a7_8 = ams[12:(iend - 12)]
+
+# n6_7 = nms[12:(iend - 13)]
+# a6_7 = ams[12:(iend - 13)]
+
+# n5_6 = nms[12:(iend - 14)]
+# a5_6 = ams[12:(iend - 14)]
+
+# n4_5 = nms[12:(iend - 15)]
+# a4_5 = ams[12:(iend - 15)]
+# # *******************************
+# n3_4 = nms[12:(iend - 16)]
+# a3_4 = ams[12:(iend - 16)]
+
+# n2_3 = nms[12:(iend - 17)]
+# a2_3 = ams[12:(iend - 17)]
+
+# n1_2 = nms[12:(iend - 18)]
+# a1_2 = ams[12:(iend - 18)]
+
+# n8_9t = nms[13:(iend - 13)]
+# a8_9t = ams[13:(iend - 13)]
+
+# n7_8t = nms[13:(iend - 14)]
+# a7_8t = ams[13:(iend - 14)]
+
+# n6_7t = nms[13:(iend - 15)]
+# a6_7t = ams[13:(iend - 15)]
+
+# n5_6t = nms[13:(iend - 16)]
+# a5_6t = ams[13:(iend - 16)]
+
+# n4_5t = nms[13:(iend - 17)]
+# a4_5t = ams[13:(iend - 17)]
+
+# n3_4t = nms[13:(iend - 18)]
+# a3_4t = ams[13:(iend - 18)]
+# # *********************************
+# n2_3t = nms[13:(iend - 19)]
+# a2_3t = ams[13:(iend - 19)]
+
+# n8_9tt = nms[14:(iend - 16)]
+# a8_9tt = ams[14:(iend - 16)]
+
+# n7_8_9 = nms[14:(iend - 17)]
+# a7_8_9 = ams[14:(iend - 17)]
+
+# n6_7_8 = nms[14:(iend - 18)]
+# a6_7_8 = ams[14:(iend - 18)]
+
+# n6_7tt = nms[14:(iend - 19)]
+# a6_7tt = ams[14:(iend - 19)]
 
 
 
